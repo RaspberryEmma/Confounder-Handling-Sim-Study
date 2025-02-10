@@ -6,7 +6,7 @@
 # Emma Tarmey
 #
 # Started:          06/02/2025
-# Most Recent Edit: 07/02/2025
+# Most Recent Edit: 10/02/2025
 # ****************************************
 
 
@@ -51,13 +51,10 @@ set.seed(seed$seed)
 
 # ----- Parameters ------
 
+# Run
 n_simulation      <- "TEST" # see Table!
-n_scenario        <- "TEST" # see Table!
-n_rep             <- 100 # 1000
+n_rep             <- 100 # 2000
 n_obs             <- 10000
-num_total_conf    <- 4
-num_meas_conf     <- 4
-num_unmeas_conf   <- 0
 Z_correlation     <- 0.2
 target_r_sq_X     <- 0.2
 target_r_sq_Y     <- 0.4
@@ -66,6 +63,21 @@ dissimilarity_rho <- 1.0
 binary_X          <- FALSE
 binary_Y          <- FALSE
 binary_Z          <- FALSE
+
+# Scenario
+args = commandArgs(trailingOnly=TRUE)
+if (length(args) > 0) {
+  n_scenario      <- as.numeric(args[1])
+  num_total_conf  <- as.numeric(args[2])
+  num_meas_conf   <- as.numeric(args[3])
+  num_unmeas_conf <- as.numeric(args[4])
+  
+} else {
+  n_scenario      <- "TEST"
+  num_total_conf  <- 16
+  num_meas_conf   <- 16
+  num_unmeas_conf <- 0
+}
 
 
 
@@ -78,14 +90,6 @@ round_df <- function(df, digits) {
   nums      <- vapply(df, is.numeric, FUN.VALUE = logical(1))
   df[,nums] <- round(df[,nums], digits = digits)
   return (df)
-}
-
-
-# Extract list of covariates who are selected in a given model
-find_vars_in_model <- function(model = NULL) {
-  vars <- names(model$coefficients)[vars != "(Intercept)"]
-  vars <- vars[vars != "(Intercept)"]
-  return (vars)
 }
 
 
@@ -170,6 +174,8 @@ r_squared_Y <- function(model     = NULL,
 }
 
 
+# Estrimate the variance in the error term for Y
+# Guarantees our value of R2Y is respected for arbitrary value of causal effect
 determine_var_error_Y <- function(num_total_conf = NULL,
                                   beta_X         = NULL,
                                   causal         = NULL,
@@ -185,6 +191,8 @@ determine_var_error_Y <- function(num_total_conf = NULL,
 }
 
 
+# Estimate covariance matrix of entire system
+# Allows us to check in-one-go whether covariates are being generated properly
 determine_cov_matrix <- function(num_total_conf = NULL,
                                  var_names      = NULL,
                                  beta_X         = NULL,
@@ -256,9 +264,26 @@ determine_cov_matrix <- function(num_total_conf = NULL,
 }
 
 
+# Helper function for recording coefficients fitted
+# Accounts for the idea that some modelling methods will exclude variables
+# i.e:  Variables correct order with NaNs filling in excluded values
+fill_in_blanks <- function(coefs = NULL, labels = NULL) {
+  for (label in labels) {
+    # if a given variable doesn't exist, create as NaN
+    if (!(label %in% names(coefs))) {
+      coefs[label] <- NaN
+    }
+  }
+  
+  # assert variable ordering
+  coefs <- coefs[order(factor(names(coefs), levels = labels))]
+  
+  return (coefs)
+}
+
+
 
 # ----- Data generation mechanism -----
-
 
 # coefficient values for DAG
 alpha <- sqrt(Z_correlation)     # U on Z
@@ -275,33 +300,79 @@ var_error_Y <- determine_var_error_Y(num_total_conf = num_total_conf,
                                      Z_correlation  = Z_correlation,
                                      target_r_sq_Y  = target_r_sq_Y)
 
-
 # datasets representative of our DAG
 generate_dataset <- function() {
-  # error terms
-  error_Z1 <- rnorm(n = n_obs, mean = 0, sd = 1)
-  error_Z2 <- rnorm(n = n_obs, mean = 0, sd = 1)
-  error_Z3 <- rnorm(n = n_obs, mean = 0, sd = 1)
-  error_Z4 <- rnorm(n = n_obs, mean = 0, sd = 1)
-  error_X  <- rnorm(n = n_obs, mean = 0, sd = 1)
-  error_Y  <- rnorm(n = n_obs, mean = 0, sd = sqrt(var_error_Y))
+  num_of_batches       <- num_total_conf / 4
+  num_censored_batches <- num_unmeas_conf / 4
+  
+  dataset <- data.frame(matrix(NaN, nrow = n_obs, ncol = length(var_names)))
+  colnames(dataset) <- var_names
   
   # shared prior U for all Z_i
   prior_U <- rnorm(n = n_obs, mean = 0, sd = 1)
   
-  # confounders Z
-  Z1 <- (alpha * prior_U) + (beta * error_Z1)
-  Z2 <- (alpha * prior_U) + (beta * error_Z2)
-  Z3 <- (alpha * prior_U) + (beta * error_Z3)
-  Z4 <- (alpha * prior_U) + (beta * error_Z4)
+  X <- rep(0, length.out = n_obs)
+  Y <- rep(0, length.out = n_obs)
   
-  # treatment variable X, outcome variable Y
-  X  <- (beta_X * Z1) + (beta_X * Z2) + (beta_X * Z3) + (beta_X * Z4) + error_X
-  Y  <- (causal * X)  + (beta_Y * Z1) + (beta_Y * Z2) + (beta_Y * Z3) + (beta_Y * Z4) + error_Y
+  # add effect of confounders Z_i to X and Y in batches of 4
+  for (i in 1:num_of_batches) {
+    # error terms
+    error_Z1 <- rnorm(n = n_obs, mean = 0, sd = 1)
+    error_Z2 <- rnorm(n = n_obs, mean = 0, sd = 1)
+    error_Z3 <- rnorm(n = n_obs, mean = 0, sd = 1)
+    error_Z4 <- rnorm(n = n_obs, mean = 0, sd = 1)
+    
+    # confounders Z
+    Z1 <- (alpha * prior_U) + (beta * error_Z1) # always X=L, Y=L
+    Z2 <- (alpha * prior_U) + (beta * error_Z2) # always X=L, Y=H
+    Z3 <- (alpha * prior_U) + (beta * error_Z3) # always X=H, Y=L
+    Z4 <- (alpha * prior_U) + (beta * error_Z4) # always X=H, Y=H
+    
+    # add confounder effect on treatment variable X and outcome variable Y
+    X  <- X + (beta_X * Z1) + (beta_X * Z2) + (beta_X * Z3) + (beta_X * Z4)
+    Y  <- Y + (beta_Y * Z1) + (beta_Y * Z2) + (beta_Y * Z3) + (beta_Y * Z4)
+    
+    # record Zs
+    # index formula places Zs such that all Zs of one sub-group are next to each other
+    dataset[, (2 + (0 * num_of_batches) + i)] <- Z1
+    dataset[, (2 + (1 * num_of_batches) + i)] <- Z2
+    dataset[, (2 + (2 * num_of_batches) + i)] <- Z3
+    dataset[, (2 + (3 * num_of_batches) + i)] <- Z4
+    
+    # TESTING
+    # print( (2 + (0 * num_of_batches) + i) )
+    # print( (2 + (1 * num_of_batches) + i) )
+    # print( (2 + (2 * num_of_batches) + i) )
+    # print( (2 + (3 * num_of_batches) + i) )
+  }
   
-  # combine into dataframe
-  dataset <- as.data.frame(cbind(Y, X, Z1, Z2, Z3, Z4))
+  # add error terms to X and Y
+  error_X <- rnorm(n = n_obs, mean = 0, sd = 1)
+  error_Y <- rnorm(n = n_obs, mean = 0, sd = sqrt(var_error_Y))
+  X <- X + error_X
+  Y <- Y + error_Y
   
+  # add causal effect (X on Y)
+  Y <- Y + (causal * X)
+  
+  # record X and Y
+  dataset[, 'Y'] <- Y
+  dataset[, 'X'] <- X
+  
+  # censor covariates as appropriate
+  if (num_censored_batches > 0) {
+    for (i in 1:num_censored_batches) {
+      # index formula censors Z's fairly between all subgroups
+      drop <- paste('Z', c((0 * num_of_batches) + i,
+                           (1 * num_of_batches) + i,
+                           (2 * num_of_batches) + i,
+                           (3 * num_of_batches) + i), sep='')
+      
+      # censor Zs
+      dataset <- dataset[, !(names(dataset) %in% drop)]
+    }
+  }
+
   return (dataset)
 }
 
@@ -314,18 +385,14 @@ model_methods <- c("linear", "linear_unadjusted",
                    "stepwise", "stepwise_X",
                    "two_step_lasso", "two_step_lasso_X")
 
-results_methods <- c("pred_mse", "r_squared_X", "r_squared_Y")
+results_methods <- c("pred_mse", "model_SE", "emp_SE",
+                     "r_squared_X", "r_squared_Y",
+                     "causal_true_value", "causal_estimate", "causal_bias", "causal_coverage",
+                     "open_paths", "blocked_paths")
 
-# results_methods <- c("pred_mse", "r_squared_X", "r_squared_Y",
-#                      "model_SE", "emp_SE",
-#                      "data_odds_ratio", "model_odds_ratio",
-#                      "causal_true_val", "causal_effect_est",
-#                      "causal_effect_bias", "causal_effect_mcse",
-#                      "avg_abs_param_bias", "coverage",
-#                      "open_paths", "blocked_paths")
-
-
-var_names <- c("Y", "X", "Z1", "Z2", "Z3", "Z4")
+var_names                         <- c("Y", "X", paste('Z', c(1:num_total_conf), sep=''))
+var_names_except_Y                <- var_names[ !var_names == 'Y']
+var_names_except_Y_with_intercept <- c("(Intercept)", var_names_except_Y)
 
 n_variables <- length(var_names)
 n_methods   <- length(model_methods)
@@ -339,13 +406,13 @@ results <- array(data     = NaN,
 
 # track all coefficient values across all repetitions
 model_coefs <- array(data     = NaN,
-                     dim      = c(n_methods, n_variables, n_rep),
-                     dimnames = list(model_methods, var_names, 1:n_rep) )
+                     dim      = c(n_methods, (n_variables), n_rep),
+                     dimnames = list(model_methods, var_names_except_Y_with_intercept, 1:n_rep) )
 
 # track covariate set selections across all repetitions
 cov_selection <- array(data     = NaN,
                        dim      = c(n_methods, (n_variables - 1), n_rep),
-                       dimnames = list(model_methods, var_names[-c(1)], 1:n_rep) )
+                       dimnames = list(model_methods, var_names_except_Y, 1:n_rep) )
 
 
 # run simulation repetitions
@@ -366,7 +433,6 @@ for (repetition in 1:n_rep) {
   X_column  <- subset(dataset, select=c(X))
   
   for (method in model_methods) {
-  
     # fit model
     model   <- NULL
     X_model <- NULL # required to make R2X well-defined
@@ -374,11 +440,17 @@ for (repetition in 1:n_rep) {
     if (method == "linear") {
       model   <- lm("Y ~ .", data = dataset)
       X_model <- lm("X ~ .", data = X_dataset)
+      
+      vars_selected <- names(model$coefficients)
+      vars_selected <- vars_selected[vars_selected != "(Intercept)"]
     }
     
     else if (method == "linear_unadjusted") {
       model   <- lm("Y ~ X", data = dataset)
       X_model <- lm("X ~ 0", data = X_dataset)
+      
+      vars_selected <- names(model$coefficients)
+      vars_selected <- vars_selected[vars_selected != "(Intercept)"]
     }
     
     else if (method == "stepwise") {
@@ -398,7 +470,7 @@ for (repetition in 1:n_rep) {
     }
     
     else if (method == "stepwise_X") {
-      stepwise_X_model   <- step(object    = lm("X ~ .", data = X_dataset),            # all variable base
+      stepwise_X_model   <- step(object    = lm("X ~ .", data = X_dataset),          # all variable base
                                  direction = "both",                                 # stepwise, not fwd or bwd
                                  scope     = list(upper = "X ~ .", lower = "X ~ 0"), # constant term
                                  trace     = 0)
@@ -445,15 +517,68 @@ for (repetition in 1:n_rep) {
       X_model <- lm(X_model_formula, data = X_dataset)
     }
     
-    # record metrics
-    results[ method, "pred_mse", repetition]    <- mean(model$residuals^2)
+    # record model coefficients
+    current_coefs <- fill_in_blanks(model$coefficients, var_names_except_Y_with_intercept)
+    model_coefs[ method, , repetition] <- current_coefs
+    
+    # record covariate selection
+    current_cov_selection        <- rep(0, times = length(var_names_except_Y))
+    names(current_cov_selection) <- var_names_except_Y
+    for (var in vars_selected) {
+      current_cov_selection[var] <- 1
+    }
+    cov_selection[ method, , repetition] <- current_cov_selection
+    
+    
+    # record results metrics
+    results[ method, "pred_mse", repetition] <- mean(model$residuals^2)
+    results[ method, "model_SE", repetition] <- (coef(summary(model))[, "Std. Error"])['X']
+    results[ method, "emp_SE", repetition]   <- NaN # filled-in after
+    
     results[ method, "r_squared_X", repetition] <- r_squared_X(X_model = X_model, X_test_data = X_dataset)
     results[ method, "r_squared_Y", repetition] <- r_squared_Y(model = model, test_data = dataset)
+    
+    results[ method, "causal_true_value", repetition] <- causal
+    results[ method, "causal_estimate", repetition]   <- current_coefs['X']
+    results[ method, "causal_bias", repetition]       <- NaN # filled-in after
+    
+    within_CI <- 0.0
+    CI        <- confint(model, 'X', level = 0.95)
+    if ((causal > CI[1]) && (causal < CI[2])) {
+      within_CI <- 1.0
+    }
+    results[ method, "causal_coverage", repetition]   <- within_CI
+    
+    results[ method, "open_paths", repetition]    <- num_total_conf
+    results[ method, "blocked_paths", repetition] <- length(vars_selected[vars_selected != "X"])
   }
 }
 
+# Take mean across repetitions
+final_results <- as.data.frame(apply(results, c(1,2), mean))
 
-# ----- Process and save results -----
+# fill-in other results
+for (method in model_methods) {
+  causal_effect_estimates            <- c(results[method, "causal_estimate", ])
+  
+  final_results[ method, "emp_SE"]      <- sd(causal_effect_estimates)
+  final_results[ method, "causal_bias"] <- mean(causal_effect_estimates - causal)
+}
+
+# Round to 3 digits
+final_results <- round_df(final_results, digits=4)
+
+# Process coefficients
+final_model_coefs <- as.data.frame(apply(model_coefs, c(1,2), mean))
+final_model_coefs <- round_df(final_model_coefs, digits=4)
+
+# Process cov selection
+final_cov_selection <- as.data.frame(apply(cov_selection, c(1,2), mean))
+final_cov_selection <- round_df(final_cov_selection, digits=4)
+
+
+
+# ----- Present and save results -----
 
  # Coefficients fitted and error-variance fitted
 coefs <- c(beta_X, beta_Y, causal)
@@ -462,6 +587,12 @@ names(coefs) <- c("beta_X", "beta_Y", "causal")
 message("\n\nTrue Coefficients of DAG and Variance of error of Y")
 print(coefs)
 print(var_error_Y)
+
+message("\n\nObserved Coefficients")
+print(final_model_coefs)
+
+message("\n\nObserved Covariate Selection")
+print(final_cov_selection)
 
 # Covariance Matrices
 analytic_cov_matrix <- determine_cov_matrix(num_total_conf = num_total_conf,
@@ -479,10 +610,23 @@ observed_cov_matrix <- round_df(as.data.frame(cov(dataset)), digits=3)
 message("\n\nObserved Covariance:")
 print(observed_cov_matrix)
 
-# Results Table
-final_results <- round_df(as.data.frame(apply(results, c(1,2), mean)), digits=3)
-message("\n\nResults Table:")
-print(final_results)
-write.csv(final_results, "../data/final_results.csv")
+message("\n\nError Results:")
+print(final_results[, c(1:3)])
+
+message("\n\nOberserved R2 Values:")
+print(final_results[, c(4:5)])
+
+message("\n\nCausal Effect Estimation:")
+print(final_results[, c(6:9)])
+
+message("\n\nBlocking Open Backdoor Pathways:")
+print(final_results[, c(10:11)])
+
+
+# Save to file
+id_string <- paste("sim_run_", n_simulation, "_scenario_", n_scenario, sep='')
+write.csv(final_results,       paste("../data/", id_string, "_results.csv", sep=''))
+write.csv(final_model_coefs,   paste("../data/", id_string, "_model_coefs.csv", sep=''))
+write.csv(final_cov_selection, paste("../data/", id_string, "_cov_selection.csv", sep=''))
 
 
