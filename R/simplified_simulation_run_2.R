@@ -719,4 +719,7 @@ write.csv(final_results,       paste("../data/", id_string, "_results.csv", sep=
 write.csv(final_model_coefs,   paste("../data/", id_string, "_model_coefs.csv", sep=''))
 write.csv(final_cov_selection, paste("../data/", id_string, "_cov_selection.csv", sep=''))
 
+write.csv(as.data.frame(analytic_cov_matrix), paste("../data/", id_string, "_analytic_cov_matrix.csv", sep=''))
+write.csv(as.data.frame(observed_cov_matrix), paste("../data/", id_string, "_observed_cov_matrix.csv", sep=''))
+
 

@@ -6,7 +6,7 @@
 # Emma Tarmey
 #
 # Started:          06/02/2025
-# Most Recent Edit: 11/02/2025
+# Most Recent Edit: 12/02/2025
 # ****************************************
 
 
@@ -718,5 +718,8 @@ id_string <- paste("sim_run_", n_simulation, "_scenario_", n_scenario, sep='')
 write.csv(final_results,       paste("../data/", id_string, "_results.csv", sep=''))
 write.csv(final_model_coefs,   paste("../data/", id_string, "_model_coefs.csv", sep=''))
 write.csv(final_cov_selection, paste("../data/", id_string, "_cov_selection.csv", sep=''))
+
+write.csv(as.data.frame(analytic_cov_matrix), paste("../data/", id_string, "_analytic_cov_matrix.csv", sep=''))
+write.csv(as.data.frame(observed_cov_matrix), paste("../data/", id_string, "_observed_cov_matrix.csv", sep=''))
 
 

@@ -43,6 +43,7 @@ echo ""
 module load languages/R/4.4.1
 
 # Execute code
+# NB: here we pass in no numbers, internal default used
 Rscript simplified_simulation_run_TEST.R
 
 echo ""

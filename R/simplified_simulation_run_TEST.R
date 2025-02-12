@@ -6,7 +6,7 @@
 # Emma Tarmey
 #
 # Started:          06/02/2025
-# Most Recent Edit: 11/02/2025
+# Most Recent Edit: 12/02/2025
 # ****************************************
 
 
@@ -75,8 +75,8 @@ if (length(args) > 0) {
 } else {
   n_scenario      <- "TEST"
   num_total_conf  <- 16
-  num_meas_conf   <- 16
-  num_unmeas_conf <- 0
+  num_meas_conf   <- 12
+  num_unmeas_conf <- 4
 }
 
 
@@ -174,7 +174,7 @@ r_squared_Y <- function(model     = NULL,
 }
 
 
-# Estrimate the variance in the error term for Y
+# Estimate the variance in the error term for Y
 # Guarantees our value of R2Y is respected for arbitrary value of causal effect
 determine_var_error_Y <- function(num_total_conf = NULL,
                                   beta_X         = NULL,
@@ -188,6 +188,20 @@ determine_var_error_Y <- function(num_total_conf = NULL,
   RHS <- S + causal^2
   
   return (LHS * RHS)
+}
+
+
+# Estimate the variance in the error term for Y
+# Same as above but with formula swapped out
+# Specifically this function gives the more-complicated "subgroups" formula
+determine_subgroup_var_error_Y <- function(num_total_conf = NULL,
+                                           beta_Xs        = NULL,
+                                           beta_Ys        = NULL,
+                                           causal         = NULL,
+                                           Z_correlation  = NULL,
+                                           target_r_sq_Y  = NULL) {
+  stop("To be implemented")
+  return (NaN)
 }
 
 
@@ -679,20 +693,20 @@ analytic_cov_matrix <- determine_cov_matrix(num_total_conf = num_total_conf,
                                             target_r_sq_X  = target_r_sq_X,
                                             target_r_sq_Y  = target_r_sq_Y)
 
-analytic_subgroup_cov_matrix <- determine_subgroup_cov_matrix(num_total_conf = num_total_conf,
-                                                              var_names      = var_names,
-                                                              beta_Xs        = c(beta_X, beta_X, beta_X, beta_X),
-                                                              beta_Ys        = c(beta_X, beta_X, beta_X, beta_X),
-                                                              causal         = causal,
-                                                              Z_correlation  = Z_correlation,
-                                                              target_r_sq_X  = target_r_sq_X,
-                                                              target_r_sq_Y  = target_r_sq_Y)
+# analytic_subgroup_cov_matrix <- determine_subgroup_cov_matrix(num_total_conf = num_total_conf,
+#                                                               var_names      = var_names,
+#                                                               beta_Xs        = c(beta_X, beta_X, beta_X, beta_X),
+#                                                               beta_Ys        = c(beta_X, beta_X, beta_X, beta_X),
+#                                                               causal         = causal,
+#                                                               Z_correlation  = Z_correlation,
+#                                                               target_r_sq_X  = target_r_sq_X,
+#                                                               target_r_sq_Y  = target_r_sq_Y)
 
 message("\n\nNon-subgroup Analytic Covariance:")
 print(analytic_cov_matrix)
 
-message("\n\n(TBC) Subgroup Analytic Covariance:")
-print(analytic_subgroup_cov_matrix)
+#message("\n\n(TBC) Subgroup Analytic Covariance:")
+#print(analytic_subgroup_cov_matrix)
 
 observed_cov_matrix <- round_df(as.data.frame(cov(dataset)), digits=3)
 message("\n\nObserved Covariance:")
@@ -716,5 +730,8 @@ id_string <- paste("sim_run_", n_simulation, "_scenario_", n_scenario, sep='')
 write.csv(final_results,       paste("../data/", id_string, "_results.csv", sep=''))
 write.csv(final_model_coefs,   paste("../data/", id_string, "_model_coefs.csv", sep=''))
 write.csv(final_cov_selection, paste("../data/", id_string, "_cov_selection.csv", sep=''))
+
+write.csv(as.data.frame(analytic_cov_matrix), paste("../data/", id_string, "_analytic_cov_matrix.csv", sep=''))
+write.csv(as.data.frame(observed_cov_matrix), paste("../data/", id_string, "_observed_cov_matrix.csv", sep=''))
 
 

@@ -9,7 +9,7 @@
 # Emma Tarmey
 #
 # Started:          11/02/2025
-# Most Recent Edit: 11/02/2025
+# Most Recent Edit: 12/02/2025
 # ****************************************
 #
 #SBATCH --partition=compute
@@ -43,6 +43,8 @@ echo ""
 module load languages/R/4.4.1
 
 # Execute code
+# NB: we pass in the following:
+# (#scenario) (#total confounders) (#measured) (#unmeasured)
 Rscript simplified_simulation_run_7.R 1  16  16  0
 Rscript simplified_simulation_run_7.R 2  16  12  4
 Rscript simplified_simulation_run_7.R 3  32  32  0
