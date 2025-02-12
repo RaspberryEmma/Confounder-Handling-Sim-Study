@@ -26,9 +26,7 @@ using<-function(...) {
     lapply(need, require, character.only=TRUE)
   }
 }
-using("dagitty", "dplyr", "ggcorrplot", "ggplot2", "glmnet",
-      "igraph", "lars", "MASS", "matrixStats", "microbenchmark",
-      "questionr", "sjmisc", "tidyr")
+using("dplyr", "glmnet", "tidyr")
 
 # fix wd issue
 # forces wd to be the location of this file
