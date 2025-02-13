@@ -73,8 +73,8 @@ if (length(args) > 0) {
 } else {
   n_scenario      <- "TEST"
   num_total_conf  <- 16
-  num_meas_conf   <- 12
-  num_unmeas_conf <- 4
+  num_meas_conf   <- 16
+  num_unmeas_conf <- 0
 }
 
 
@@ -126,6 +126,41 @@ beta_X_formula <- function(num_total_conf = NULL,
   value <- sqrt(numerator / denominator)
   
   return (value)
+}
+
+
+# The value for the beta coefficients used for generating X
+# 4 different values corresponding to the 4 subgroups
+beta_X_subgroups_formula <- function() {
+  # (i) Balanced coef value b
+  
+  # (ii) var( error_Y )
+  
+  # (iii) 
+  beta_X_1 <- NaN
+  beta_X_2 <- NaN
+  
+  # (iv)
+  beta_X_3 <- NaN
+  beta_X_4 <- beta_X_3
+  
+  beta_Xs <- c(beta_X_1, beta_X_2, beta_X_3, beta_X_4)
+  
+  return (beta_Xs)
+}
+
+
+# The value for the beta coefficients used for generating Y
+# 4 different values corresponding to the 4 subgroups
+beta_Y_subgroups_formula <- function() {
+  beta_Y_1 <- NaN
+  beta_Y_2 <- NaN
+  beta_Y_3 <- NaN
+  beta_Y_4 <- NaN
+  
+  beta_Ys <- c(beta_Y_1, beta_Y_2, beta_Y_3, beta_Y_4)
+  
+  return (beta_Ys)
 }
 
 
@@ -290,26 +325,60 @@ determine_subgroup_cov_matrix <- function(num_total_conf = NULL,
   
   num_vars         <- length(var_names)
   num_of_cov_terms <- ((num_total_conf) * (num_total_conf - 1))
-  new_coef         <- ((causal*beta_X) + beta_Y)^2
+  subgroup_size    <- num_total_conf / 4
+  
+  lambdas <- (causal * beta_Xs) + beta_Ys
+  print(beta_Xs)
+  print(beta_Ys)
+  print(lambdas)
+  stop("dev")
   
   analytic_cov           <- matrix(NaN, num_vars, num_vars)
   rownames(analytic_cov) <- var_names
   colnames(analytic_cov) <- var_names
   
-  var_error_Y <- determine_subgroup_var_error_Y(num_total_conf = num_total_conf,
-                                                beta_Xs        = beta_Xs,
-                                                beta_Ys        = beta_Ys,
-                                                causal         = causal,
-                                                Z_correlation  = Z_correlation,
-                                                target_r_sq_Y  = target_r_sq_Y)
+  # var_error_Y <- determine_subgroup_var_error_Y(num_total_conf = num_total_conf,
+  #                                               beta_Xs        = beta_Xs,
+  #                                               beta_Ys        = beta_Ys,
+  #                                               causal         = causal,
+  #                                               Z_correlation  = Z_correlation,
+  #                                               target_r_sq_Y  = target_r_sq_Y)
+  var_error_Y <- NaN
   
   # variances
+  # i indexes over {1, ..., m, m+1, m+2}
+  # Y, X, Z1, ..., Zm
   for (i in 1:num_vars) {
     # variances here
     if (var_names[i] == 'X') {
-      analytic_cov[i, i] <- NaN
+      
+      # NB: we use indexing variables j, k here to index over {1, 2, ..., m}
+      double_sum_of_products <- 0.0
+      for (j in 1:num_total_conf) {
+        for (k in 1:num_total_conf) {
+          if (j == k) {
+            # skip
+          }
+          else {
+            beta_Z_j <- beta_Xs[ ceiling(j / subgroup_size) ]
+            beta_Z_k <- beta_Xs[ ceiling(k / subgroup_size) ]
+            double_sum_of_products <- (double_sum_of_products + (beta_Z_j * beta_Z_k))
+          }
+        }
+      }
+      
+      cov_from_variances   <- (num_total_conf / 4) * (beta_Xs[1]^2 + beta_Xs[2]^2 + beta_Xs[3]^2 + beta_Xs[4]^2)
+      cov_from_covariances <- Z_correlation * double_sum_of_products # NB: Z_correlation = alpha^2
+      error_on_X           <- 1.0
+      
+      analytic_cov[i, i] <- cov_from_variances + cov_from_covariances + error_on_X
     }
     else if (var_names[i] == 'Y') {
+      # cov_from_variances   <- NaN
+      # cov_from_covariances <- NaN
+      # error_on_X           <- causal^2
+      # error_on_Y           <- var_error_Y
+      
       analytic_cov[i, i] <- NaN
     }
     else {
@@ -691,20 +760,20 @@ analytic_cov_matrix <- determine_cov_matrix(num_total_conf = num_total_conf,
                                             target_r_sq_X  = target_r_sq_X,
                                             target_r_sq_Y  = target_r_sq_Y)
 
-# analytic_subgroup_cov_matrix <- determine_subgroup_cov_matrix(num_total_conf = num_total_conf,
-#                                                               var_names      = var_names,
-#                                                               beta_Xs        = c(beta_X, beta_X, beta_X, beta_X),
-#                                                               beta_Ys        = c(beta_X, beta_X, beta_X, beta_X),
-#                                                               causal         = causal,
-#                                                               Z_correlation  = Z_correlation,
-#                                                               target_r_sq_X  = target_r_sq_X,
-#                                                               target_r_sq_Y  = target_r_sq_Y)
+analytic_subgroup_cov_matrix <- determine_subgroup_cov_matrix(num_total_conf = num_total_conf,
+                                                              var_names      = var_names,
+                                                              beta_Xs        = c(beta_X, beta_X, beta_X, beta_X),
+                                                              beta_Ys        = c(beta_X, beta_X, beta_X, beta_X),
+                                                              causal         = causal,
+                                                              Z_correlation  = Z_correlation,
+                                                              target_r_sq_X  = target_r_sq_X,
+                                                              target_r_sq_Y  = target_r_sq_Y)
 
 message("\n\nNon-subgroup Analytic Covariance:")
 print(analytic_cov_matrix)
 
-#message("\n\n(TBC) Subgroup Analytic Covariance:")
-#print(analytic_subgroup_cov_matrix)
+message("\n\n(TBC) Subgroup Analytic Covariance:")
+print(analytic_subgroup_cov_matrix)
 
 observed_cov_matrix <- round_df(as.data.frame(cov(dataset)), digits=3)
 message("\n\nObserved Covariance:")

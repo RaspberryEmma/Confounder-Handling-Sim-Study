@@ -6,7 +6,7 @@
 # Emma Tarmey
 #
 # Started:          06/02/2025
-# Most Recent Edit: 11/02/2025
+# Most Recent Edit: 13/02/2025
 # ****************************************
 
 
@@ -679,20 +679,20 @@ analytic_cov_matrix <- determine_cov_matrix(num_total_conf = num_total_conf,
                                             target_r_sq_X  = target_r_sq_X,
                                             target_r_sq_Y  = target_r_sq_Y)
 
-analytic_subgroup_cov_matrix <- determine_subgroup_cov_matrix(num_total_conf = num_total_conf,
-                                                              var_names      = var_names,
-                                                              beta_Xs        = c(beta_X, beta_X, beta_X, beta_X),
-                                                              beta_Ys        = c(beta_X, beta_X, beta_X, beta_X),
-                                                              causal         = causal,
-                                                              Z_correlation  = Z_correlation,
-                                                              target_r_sq_X  = target_r_sq_X,
-                                                              target_r_sq_Y  = target_r_sq_Y)
+# analytic_subgroup_cov_matrix <- determine_subgroup_cov_matrix(num_total_conf = num_total_conf,
+#                                                               var_names      = var_names,
+#                                                               beta_Xs        = c(beta_X, beta_X, beta_X, beta_X),
+#                                                               beta_Ys        = c(beta_X, beta_X, beta_X, beta_X),
+#                                                               causal         = causal,
+#                                                               Z_correlation  = Z_correlation,
+#                                                               target_r_sq_X  = target_r_sq_X,
+#                                                               target_r_sq_Y  = target_r_sq_Y)
 
 message("\n\nNon-subgroup Analytic Covariance:")
 print(analytic_cov_matrix)
 
-message("\n\n(TBC) Subgroup Analytic Covariance:")
-print(analytic_subgroup_cov_matrix)
+# message("\n\n(TBC) Subgroup Analytic Covariance:")
+# print(analytic_subgroup_cov_matrix)
 
 observed_cov_matrix <- round_df(as.data.frame(cov(dataset)), digits=3)
 message("\n\nObserved Covariance:")

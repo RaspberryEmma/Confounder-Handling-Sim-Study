@@ -13,7 +13,7 @@
 # ****************************************
 #
 #SBATCH --partition=compute
-#SBATCH --job-name=conf_sim_study
+#SBATCH --job-name=conf_sim_study_run_TEST
 #SBATCH --nodes=1
 #SBATCH --ntasks-per-node=1
 #SBATCH --cpus-per-task=16
