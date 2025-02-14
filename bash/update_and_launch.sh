@@ -31,7 +31,7 @@ module load languages/python/3.12.3
 # submit simulation to BP HPC
 #sbatch launch_BP_run_TEST.sh
 #for i in 1 2 3 4 5 6 7;
-for i in 1 2;
+for i in 2;
 do
 	echo "Submitting job: launch_BP_run_"$i".sh"
 	sbatch "launch_BP_run_"$i".sh"
