@@ -6,7 +6,7 @@
 # Emma Tarmey
 #
 # Started:          06/02/2025
-# Most Recent Edit: 24/02/2025
+# Most Recent Edit: 21/02/2025
 # ****************************************
 
 
@@ -39,11 +39,11 @@ if (Sys.getenv("RSTUDIO") == "1") {
 # ----- Random Number Generation -----
 
 # fix RNG seed based on current run and scenario
-# seeds_df <- read.csv(file = "../data/precomputed_RNG_seeds.csv")
-# seed     <- seeds_df %>%
-#   filter(simulation_run      == 1) %>%
-#   filter(simulation_scenario == 1)
-# set.seed(seed$seed)
+seeds_df <- read.csv(file = "../data/precomputed_RNG_seeds.csv")
+seed     <- seeds_df %>%
+  filter(simulation_run      == 1) %>%
+  filter(simulation_scenario == 1)
+set.seed(seed$seed)
 
 
 
@@ -60,12 +60,9 @@ target_r_sq_Y     <- 0.4
 causal            <- 0.5
 dissimilarity_rho <- 1.0
 
-binary_X            <- FALSE
-binary_X_propensity <- 0.30
-binary_Y            <- FALSE
-binary_Y_propensity <- 0.30  # 0.05 or 0.30
-binary_Z            <- FALSE
-binary_Z_propensity <- 0.30
+binary_X          <- FALSE
+binary_Y          <- FALSE
+binary_Z          <- FALSE
 
 # Scenario
 args = commandArgs(trailingOnly=TRUE)
@@ -91,7 +88,7 @@ if (length(args) > 0) {
 # Credit to: https://stackoverflow.com/questions/9063889/how-to-round-a-data-frame-in-r-that-contains-some-character-variables
 round_df <- function(df, digits) {
   nums      <- vapply(df, is.numeric, FUN.VALUE = logical(1))
-  df[,nums] <- signif(df[,nums], digits = digits)
+  df[,nums] <- round(df[,nums], digits = digits)
   return (df)
 }
 
@@ -141,18 +138,11 @@ beta_X_formula <- function(num_total_conf = NULL,
 
 # The value for the beta coefficients used for generating X
 # 4 different values corresponding to the 4 subgroups
-beta_X_subgroups_formula <- function() {
-  # (i) Balanced coef value b
-  
-  # (ii) var( error_Y )
-  
-  # (iii) 
-  beta_X_1 <- NaN
-  beta_X_2 <- NaN
-  
-  # (iv)
-  beta_X_3 <- NaN
-  beta_X_4 <- beta_X_3
+beta_X_subgroups_formula <- function(beta_X = NULL) {
+  beta_X_1 <- beta_X     # HH
+  beta_X_2 <- beta_X     # HL
+  beta_X_3 <- beta_X / 4 # LH
+  beta_X_4 <- beta_X / 4 # LL
   
   beta_Xs <- c(beta_X_1, beta_X_2, beta_X_3, beta_X_4)
   
@@ -162,11 +152,11 @@ beta_X_subgroups_formula <- function() {
 
 # The value for the beta coefficients used for generating Y
 # 4 different values corresponding to the 4 subgroups
-beta_Y_subgroups_formula <- function() {
-  beta_Y_1 <- NaN
-  beta_Y_2 <- NaN
-  beta_Y_3 <- NaN
-  beta_Y_4 <- NaN
+beta_Y_subgroups_formula <- function(beta_X = NULL) {
+  beta_Y_1 <- beta_X     # HH
+  beta_Y_2 <- beta_X / 4 # HL
+  beta_Y_3 <- beta_X     # LH
+  beta_Y_4 <- beta_X / 4 # LL
   
   beta_Ys <- c(beta_Y_1, beta_Y_2, beta_Y_3, beta_Y_4)
   
@@ -217,131 +207,46 @@ r_squared_Y <- function(model     = NULL,
 }
 
 
-pseudo_r_squared_X <- function(X_model     = NULL,
-                               X_test_data = NULL) {
-  R2 <- NaN
+# Estimate the variance in Y before error
+# Idea is that we fix this for given values of R2 and b
+# We then get a compatible error term later on
+determine_subgroup_var_Y <- function(num_total_conf = NULL,
+                                     beta_X         = NULL,
+                                     causal         = NULL,
+                                     Z_correlation  = NULL,
+                                     target_r_sq_Y  = NULL) {
   
-  # log_lik_null   <- NaN
-  # log_lik_fitted <- NaN
-  # R2 <- 1 - (log_lik_null/log_lik_fitted)^(2/n_obs)
+  subgroup_size <- num_total_conf / 4
+  beta_X_high   <- beta_X
+  beta_X_low    <- beta_X / 4
   
-  return (R2)
-}
-
-
-pseudo_r_squared_Y <- function(model     = NULL,
-                               test_data = NULL) {
-  R2 <- NaN
+  A <- (causal * beta_X_low)  + beta_X_high
+  B <- (causal * beta_X_high) + beta_X_high
+  C <- (causal * beta_X_high) + beta_X_low
+  D <- (causal * beta_X_low)  + beta_X_low
   
-  # log_lik_null   <- NaN
-  # log_lik_fitted <- NaN
-  # R2 <- 1 - (log_lik_null/log_lik_fitted)^(2/n_obs)
+  pairwise_combinations <- (A*B) + (A*C) + (A*D) + (B*C) + (B*D) + (C*D)
   
-  return (R2)
-}
-
-
-# Estimate the variance in the error term for Y
-# Guarantees our value of R2Y is respected for arbitrary value of causal effect
-determine_var_error_Y <- function(num_total_conf = NULL,
-                                  beta_X         = NULL,
-                                  causal         = NULL,
-                                  Z_correlation  = NULL,
-                                  target_r_sq_Y  = NULL) {
+  LHS <- (A^2 + B^2 + C^2 + D^2) * (subgroup_size + (Z_correlation * subgroup_size * (subgroup_size - 1)))
+  MID <- 2 * Z_correlation * subgroup_size^2 * pairwise_combinations
+  RHS <- causal^2
   
-  LHS   <- (1 - target_r_sq_Y)/target_r_sq_Y
-  S     <- (causal + 1)^2 * ((num_total_conf * beta_X^2) + (num_total_conf * (num_total_conf - 1) * Z_correlation * beta_X^2))
-  RHS   <- S + causal^2
-  value <- LHS * RHS
+  value <- LHS + MID + RHS
   
   return (value)
 }
 
 
 # Estimate the variance in the error term for Y
-# Same as above but with formula swapped out
-# Specifically this function gives the more-complicated "subgroups" formula
-determine_subgroup_var_error_Y <- function(num_total_conf = NULL,
-                                           beta_Xs        = NULL,
-                                           beta_Ys        = NULL,
-                                           causal         = NULL,
-                                           Z_correlation  = NULL,
+# Takes a given variance of Y and inverts the R2 formula
+determine_subgroup_var_error_Y <- function(var_Y          = NULL,
                                            target_r_sq_Y  = NULL) {
-  stop("To be implemented")
-  return (NaN)
-}
-
-
-# Estimate covariance matrix of entire system
-# Allows us to check in-one-go whether covariates are being generated properly
-determine_cov_matrix <- function(num_total_conf = NULL,
-                                 var_names      = NULL,
-                                 beta_X         = NULL,
-                                 beta_Y         = NULL,
-                                 causal         = NULL,
-                                 Z_correlation  = NULL,
-                                 target_r_sq_X  = NULL,
-                                 target_r_sq_Y  = NULL) {
   
-  num_vars         <- length(var_names)
-  num_of_cov_terms <- ((num_total_conf) * (num_total_conf - 1))
-  new_coef         <- ((causal*beta_X) + beta_Y)^2
+  LHS   <- 1 - target_r_sq_Y
+  RHS   <- var_Y / target_r_sq_Y
+  value <- sqrt(LHS * RHS)
   
-  analytic_cov           <- matrix(NaN, num_vars, num_vars)
-  rownames(analytic_cov) <- var_names
-  colnames(analytic_cov) <- var_names
-  
-  var_error_Y <- determine_var_error_Y(num_total_conf = num_total_conf,
-                                       beta_X         = beta_X,
-                                       causal         = causal,
-                                       Z_correlation  = Z_correlation,
-                                       target_r_sq_Y  = target_r_sq_Y)
-  
-  # variances
-  for (i in 1:num_vars) {
-    # variances here
-    if (var_names[i] == 'X') {
-      analytic_cov[i, i] <- (num_total_conf * beta_X^2) + 1 + (num_of_cov_terms * beta_X^2 * Z_correlation)
-    }
-    else if (var_names[i] == 'Y') {
-      analytic_cov[i, i] <- (num_total_conf * new_coef) + (causal^2) + var_error_Y + (num_of_cov_terms * new_coef * Z_correlation)
-    }
-    else {
-      analytic_cov[i, i] <- (sqrt(Z_correlation))^2 + (sqrt(1 - Z_correlation))^2
-    }
-  }
-  
-  # pairwise covariances
-  for (i in 1:num_vars) {
-    for (j in 1:num_vars) {
-      if (i == j) {
-        # diagonal, skip
-      }
-      else if (var_names[i] == 'X' & var_names[j] == 'Y') {
-        analytic_cov[i, j] <- NaN
-      }
-      else if (var_names[i] == 'Y' & var_names[j] == 'X') {
-        analytic_cov[i, j] <- NaN
-      }
-      else if (var_names[i] == 'X' & var_names[j] != 'Y') {
-        analytic_cov[i, j] <- NaN
-      }
-      else if (var_names[i] == 'Y' & var_names[j] != 'X') {
-        analytic_cov[i, j] <- NaN
-      }
-      else if (var_names[i] != 'X' & var_names[j] == 'Y') {
-        analytic_cov[i, j] <- NaN
-      }
-      else if (var_names[i] != 'Y' & var_names[j] == 'X') {
-        analytic_cov[i, j] <- NaN
-      }
-      else {
-        analytic_cov[i, j] <- Z_correlation
-      }
-    }
-  }
-  
-  return (analytic_cov)
+  return (value)
 }
 
 
@@ -363,20 +268,20 @@ determine_subgroup_cov_matrix <- function(num_total_conf = NULL,
   
   lambdas <- (causal * beta_Xs) + beta_Ys
   
-  # print(beta_Xs)
-  # print(beta_Ys)
-  # print(lambdas)
-  # stop("dev")
-  
   analytic_cov           <- matrix(NaN, num_vars, num_vars)
   rownames(analytic_cov) <- var_names
   colnames(analytic_cov) <- var_names
   
-  var_error_Y <- determine_var_error_Y(num_total_conf = num_total_conf,
-                                       beta_X         = beta_X,
-                                       causal         = causal,
-                                       Z_correlation  = Z_correlation,
-                                       target_r_sq_Y  = target_r_sq_Y)
+  var_Y <- determine_subgroup_var_Y(num_total_conf = num_total_conf,
+                                    beta_X         = beta_X,
+                                    causal         = causal,
+                                    Z_correlation  = Z_correlation,
+                                    target_r_sq_Y  = target_r_sq_Y)
+  
+  var_error_Y <- determine_subgroup_var_error_Y(var_Y          = var_Y,
+                                                target_r_sq_Y  = target_r_sq_Y)
+  
+  real_var_Y <- var_Y + var_error_Y
   
   # variances
   # NB: i indexes over {1, ..., m, m+1, m+2} for variables {Y, X, Z1, ..., Zm}
@@ -384,50 +289,10 @@ determine_subgroup_cov_matrix <- function(num_total_conf = NULL,
     # variances here
     if (var_names[i] == 'X') {
       
-      # NB: we use indexing variables j, k here to index over {1, 2, ..., m}
-      double_sum_of_products <- 0.0
-      for (j in 1:num_total_conf) {
-        for (k in 1:num_total_conf) {
-          if (j == k) {
-            # skip
-          }
-          else {
-            beta_Z_j <- beta_Xs[ ceiling(j / subgroup_size) ]
-            beta_Z_k <- beta_Xs[ ceiling(k / subgroup_size) ]
-            double_sum_of_products <- (double_sum_of_products + (beta_Z_j * beta_Z_k))
-          }
-        }
-      }
-      
-      cov_from_variances   <- (num_total_conf / 4) * (beta_Xs[1]^2 + beta_Xs[2]^2 + beta_Xs[3]^2 + beta_Xs[4]^2)
-      cov_from_covariances <- Z_correlation * double_sum_of_products # NB: Z_correlation = alpha^2
-      error_on_X           <- 1.0
-      
-      analytic_cov[i, i] <- cov_from_variances + cov_from_covariances + error_on_X
+      analytic_cov[i, i] <- NaN
     }
     else if (var_names[i] == 'Y') {
-      
-      # NB: we use indexing variables j, k here to index over {1, 2, ..., m}
-      double_sum_of_products <- 0.0
-      for (j in 1:num_total_conf) {
-        for (k in 1:num_total_conf) {
-          if (j == k) {
-            # skip
-          }
-          else {
-            lambda_Z_j <- lambdas[ ceiling(j / subgroup_size) ]
-            lambda_Z_k <- lambdas[ ceiling(k / subgroup_size) ]
-            double_sum_of_products <- (double_sum_of_products + (lambda_Z_j * lambda_Z_k))
-          }
-        }
-      }
-      
-      cov_from_variances   <- (num_total_conf / 4) * (lambdas[1]^2 + lambdas[2]^2 + lambdas[3]^2 + lambdas[4]^2)
-      cov_from_covariances <- Z_correlation * double_sum_of_products # NB: Z_correlation = alpha^2
-      error_on_X           <- causal^2
-      error_on_Y           <- var_error_Y
-      
-      analytic_cov[i, i] <- cov_from_variances + cov_from_covariances + error_on_X + error_on_Y
+      analytic_cov[i, i] <- real_var_Y
     }
     else {
       analytic_cov[i, i] <- (sqrt(Z_correlation))^2 + (sqrt(1 - Z_correlation))^2
@@ -492,17 +357,23 @@ fill_in_blanks <- function(coefs = NULL, labels = NULL) {
 # coefficient values for DAG
 alpha <- sqrt(Z_correlation)     # U on Z
 beta  <- sqrt(1 - Z_correlation) # error_Z on Z
+
 beta_X  <- beta_X_formula(num_total_conf = num_total_conf, # Z on X
                           target_r_sq_X  = target_r_sq_X,
                           Z_correlation  = Z_correlation)
-beta_Y  <- beta_X # Z on Y
+
+beta_Xs <- beta_X_subgroups_formula(beta_X = beta_X)
+beta_Ys <- beta_Y_subgroups_formula(beta_X = beta_X)
 
 # variance of the error term for Y
-var_error_Y <- determine_var_error_Y(num_total_conf = num_total_conf,
-                                     beta_X         = beta_X,
-                                     causal         = causal,
-                                     Z_correlation  = Z_correlation,
-                                     target_r_sq_Y  = target_r_sq_Y)
+var_Y <- determine_subgroup_var_Y(num_total_conf = num_total_conf,
+                                  beta_X         = beta_X,
+                                  causal         = causal,
+                                  Z_correlation  = Z_correlation,
+                                  target_r_sq_Y  = target_r_sq_Y)
+
+var_error_Y <- determine_subgroup_var_error_Y(var_Y          = var_Y,
+                                              target_r_sq_Y  = target_r_sq_Y)
 
 # datasets representative of our DAG
 generate_dataset <- function() {
@@ -533,8 +404,8 @@ generate_dataset <- function() {
     Z4 <- (alpha * prior_U) + (beta * error_Z4) # always X=H, Y=H
     
     # add confounder effect on treatment variable X and outcome variable Y
-    X  <- X + (beta_X * Z1) + (beta_X * Z2) + (beta_X * Z3) + (beta_X * Z4)
-    Y  <- Y + (beta_Y * Z1) + (beta_Y * Z2) + (beta_Y * Z3) + (beta_Y * Z4)
+    X  <- X + (beta_Xs[1] * Z1) + (beta_Xs[2] * Z2) + (beta_Xs[3] * Z3) + (beta_Xs[4] * Z4)
+    Y  <- Y + (beta_Ys[1] * Z1) + (beta_Ys[2] * Z2) + (beta_Ys[3] * Z3) + (beta_Ys[4] * Z4)
     
     # record Zs
     # index formula places Zs such that all Zs of one sub-group are next to each other
@@ -542,38 +413,22 @@ generate_dataset <- function() {
     dataset[, (2 + (1 * num_of_batches) + i)] <- Z2
     dataset[, (2 + (2 * num_of_batches) + i)] <- Z3
     dataset[, (2 + (3 * num_of_batches) + i)] <- Z4
+    
+    # TESTING
+    # print( (2 + (0 * num_of_batches) + i) )
+    # print( (2 + (1 * num_of_batches) + i) )
+    # print( (2 + (2 * num_of_batches) + i) )
+    # print( (2 + (3 * num_of_batches) + i) )
   }
   
-  # add error term to X if not binary
-  if (!binary_X) {
-    error_X <- rnorm(n = n_obs, mean = 0, sd = 1)
-    X <- X + error_X
-  }
-  
-  # add error term to Y if not binary
-  if (!binary_Y) {
-    error_Y <- rnorm(n = n_obs, mean = 0, sd = sqrt(var_error_Y))
-    Y <- Y + error_Y
-  }
-  
-  # binarize X if binary
-  if (binary_X) {
-    logit_prob_X  <- X                                          # interpret existing values as logit(probability)
-    prob_X        <- inverse_logit(logit_prob_X)                # apply inverse to obtain prob values
-    binary_vals_X <- rbinom(n = n_obs, size = 1, prob = prob_X) # re-sample to obtain X
-    X             <- binary_vals_X                              # write binary values over previous continuous values
-  }
+  # add error terms to X and Y
+  error_X <- rnorm(n = n_obs, mean = 0, sd = 1)
+  error_Y <- rnorm(n = n_obs, mean = 0, sd = sqrt(var_error_Y))
+  X <- X + error_X
+  Y <- Y + error_Y
   
   # add causal effect (X on Y)
   Y <- Y + (causal * X)
-  
-  # binarize Y if binary
-  if (binary_Y) {
-    logit_prob_Y  <- Y                                          # interpret existing values as logit(probability)
-    prob_Y        <- inverse_logit(logit_prob_Y)                # apply inverse to obtain prob values
-    binary_vals_Y <- rbinom(n = n_obs, size = 1, prob = prob_Y) # re-sample to obtain Y
-    Y             <- Y                                          # write binary values over previous continuous values
-  }
   
   # record X and Y
   dataset[, 'Y'] <- Y
@@ -605,9 +460,8 @@ model_methods <- c("linear", "linear_unadjusted",
                    "stepwise", "stepwise_X",
                    "two_step_lasso", "two_step_lasso_X")
 
-results_methods <- c("pred_mse", "model_SE", "emp_SE", "mcse",
+results_methods <- c("pred_mse", "model_SE", "emp_SE",
                      "r_squared_X", "r_squared_Y",
-                     "pseudo_r_squared_X", "pseudo_r_squared_Y",
                      "causal_true_value", "causal_estimate", "causal_bias", "causal_coverage",
                      "open_paths", "blocked_paths")
 
@@ -765,13 +619,9 @@ for (repetition in 1:n_rep) {
     results[ method, "pred_mse", repetition] <- mean(model$residuals^2)
     results[ method, "model_SE", repetition] <- (coef(summary(model))[, "Std. Error"])['X']
     results[ method, "emp_SE", repetition]   <- NaN # filled-in after
-    results[ method, "mcse", repetition]     <- NaN # filled-in after
     
-    results[ method, "r_squared_X", repetition] <- ifelse( binary_X, NaN, r_squared_X(X_model = X_model, X_test_data = X_dataset) )
-    results[ method, "r_squared_Y", repetition] <- ifelse( binary_Y, NaN, r_squared_Y(model = model, test_data = dataset) )
-    
-    results[ method, "pseudo_r_squared_X", repetition] <- ifelse( binary_X, pseudo_r_squared_X(X_model = X_model, X_test_data = X_dataset), NaN )
-    results[ method, "pseudo_r_squared_Y", repetition] <- ifelse( binary_Y, pseudo_r_squared_Y(model = model, test_data = dataset),         NaN )
+    results[ method, "r_squared_X", repetition] <- r_squared_X(X_model = X_model, X_test_data = X_dataset)
+    results[ method, "r_squared_Y", repetition] <- r_squared_Y(model = model, test_data = dataset)
     
     results[ method, "causal_true_value", repetition] <- causal
     results[ method, "causal_estimate", repetition]   <- current_coefs['X']
@@ -797,32 +647,33 @@ for (method in model_methods) {
   causal_effect_estimates            <- c(results[method, "causal_estimate", ])
   
   final_results[ method, "emp_SE"]      <- sd(causal_effect_estimates)
-  final_results[ method, "mcse"]        <- sd(causal_effect_estimates)/n_rep
   final_results[ method, "causal_bias"] <- mean(causal_effect_estimates - causal)
 }
 
 # Round to 3 digits
-final_results <- round_df(final_results, digits=3)
+final_results <- round_df(final_results, digits=4)
 
 # Process coefficients
 final_model_coefs <- as.data.frame(apply(model_coefs, c(1,2), mean))
-final_model_coefs <- round_df(final_model_coefs, digits=3)
+final_model_coefs <- round_df(final_model_coefs, digits=4)
 
 # Process cov selection
 final_cov_selection <- as.data.frame(apply(cov_selection, c(1,2), mean))
-final_cov_selection <- round_df(final_cov_selection, digits=3)
+final_cov_selection <- round_df(final_cov_selection, digits=4)
 
 
 
 # ----- Present and save results -----
 
  # Coefficients fitted and error-variance fitted
-coefs <- c(beta_X, beta_Y, causal)
-names(coefs) <- c("beta_X", "beta_Y", "causal")
+coefs <- c(beta_Xs, beta_Ys, causal)
+#names(coefs) <- c("beta_X", "beta_Y", "causal")
 
 message("\n\nTrue Coefficients of DAG and Variance of error of Y")
 print(coefs)
+print(var_Y)
 print(var_error_Y)
+print(var_Y + var_error_Y)
 
 message("\n\nObserved Coefficients")
 print(final_model_coefs)
@@ -830,24 +681,24 @@ print(final_model_coefs)
 message("\n\nObserved Covariate Selection")
 print(final_cov_selection)
 
-# Covariance Matrices
-analytic_cov_matrix <- determine_cov_matrix(num_total_conf = num_total_conf,
-                                            var_names      = var_names,
-                                            beta_X         = beta_X,
-                                            beta_Y         = beta_Y,
-                                            causal         = causal,
-                                            Z_correlation  = Z_correlation,
-                                            target_r_sq_X  = target_r_sq_X,
-                                            target_r_sq_Y  = target_r_sq_Y)
+# # Covariance Matrices
+# analytic_cov_matrix <- determine_subgroup_cov_matrix(num_total_conf = num_total_conf,
+#                                             var_names      = var_names,
+#                                             beta_X         = beta_X,
+#                                             beta_Y         = beta_Y,
+#                                             causal         = causal,
+#                                             Z_correlation  = Z_correlation,
+#                                             target_r_sq_X  = target_r_sq_X,
+#                                             target_r_sq_Y  = target_r_sq_Y)
 
-# analytic_subgroup_cov_matrix <- determine_subgroup_cov_matrix(num_total_conf = num_total_conf,
-#                                                               var_names      = var_names,
-#                                                               beta_Xs        = c(beta_X, beta_X, beta_X, beta_X),
-#                                                               beta_Ys        = c(beta_X, beta_X, beta_X, beta_X),
-#                                                               causal         = causal,
-#                                                               Z_correlation  = Z_correlation,
-#                                                               target_r_sq_X  = target_r_sq_X,
-#                                                               target_r_sq_Y  = target_r_sq_Y)
+analytic_subgroup_cov_matrix <- determine_subgroup_cov_matrix(num_total_conf = num_total_conf,
+                                                              var_names      = var_names,
+                                                              beta_Xs        = c(beta_X, beta_X, beta_X, beta_X),
+                                                              beta_Ys        = c(beta_X, beta_X, beta_X, beta_X),
+                                                              causal         = causal,
+                                                              Z_correlation  = Z_correlation,
+                                                              target_r_sq_X  = target_r_sq_X,
+                                                              target_r_sq_Y  = target_r_sq_Y)
 
 message("\n\nNon-subgroup Analytic Covariance:")
 print(analytic_cov_matrix)
@@ -860,19 +711,16 @@ message("\n\nObserved Covariance:")
 print(observed_cov_matrix)
 
 message("\n\nError Results:")
-print(final_results[, c(1:4)])
+print(final_results[, c(1:3)])
 
-message("\n\nObserved (Continuous) R2 Values:")
-print(final_results[, c(5:6)])
-
-message("\n\nObserved (Binary) Pseudo-R2 Values:")
-print(final_results[, c(7:8)])
+message("\n\nObserved R2 Values:")
+print(final_results[, c(4:5)])
 
 message("\n\nCausal Effect Estimation:")
-print(final_results[, c(9:12)])
+print(final_results[, c(6:9)])
 
 message("\n\nBlocking Open Backdoor Pathways:")
-print(final_results[, c(13:14)])
+print(final_results[, c(10:11)])
 
 
 # Save to file
