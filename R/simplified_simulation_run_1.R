@@ -6,7 +6,7 @@
 # Emma Tarmey
 #
 # Started:          06/02/2025
-# Most Recent Edit: 18/02/2025
+# Most Recent Edit: 26/02/2025
 # ****************************************
 
 
@@ -36,17 +36,6 @@ if (Sys.getenv("RSTUDIO") == "1") {
 
 
 
-# ----- Random Number Generation -----
-
-# fix RNG seed based on current run and scenario
-seeds_df <- read.csv(file = "../data/precomputed_RNG_seeds.csv")
-seed     <- seeds_df %>%
-  filter(simulation_run      == 1) %>%
-  filter(simulation_scenario == 1)
-set.seed(seed$seed)
-
-
-
 # ----- Parameters ------
 
 # Run
@@ -73,11 +62,22 @@ if (length(args) > 0) {
   num_unmeas_conf <- as.numeric(args[4])
   
 } else {
-  n_scenario      <- "TEST"
+  n_scenario      <- 1
   num_total_conf  <- 16
   num_meas_conf   <- 16
   num_unmeas_conf <- 0
 }
+
+
+
+# ----- Random Number Generation -----
+
+# fix RNG seed based on current run and scenario
+seeds_df <- read.csv(file = "../data/precomputed_RNG_seeds.csv")
+seed     <- seeds_df %>%
+  filter(simulation_run      == n_simulation) %>%
+  filter(simulation_scenario == n_scenario)
+set.seed(seed$seed)
 
 
 
@@ -133,41 +133,6 @@ beta_X_formula <- function(num_total_conf = NULL,
   value <- sqrt(numerator / denominator)
   
   return (value)
-}
-
-
-# The value for the beta coefficients used for generating X
-# 4 different values corresponding to the 4 subgroups
-beta_X_subgroups_formula <- function() {
-  # (i) Balanced coef value b
-  
-  # (ii) var( error_Y )
-  
-  # (iii) 
-  beta_X_1 <- NaN
-  beta_X_2 <- NaN
-  
-  # (iv)
-  beta_X_3 <- NaN
-  beta_X_4 <- beta_X_3
-  
-  beta_Xs <- c(beta_X_1, beta_X_2, beta_X_3, beta_X_4)
-  
-  return (beta_Xs)
-}
-
-
-# The value for the beta coefficients used for generating Y
-# 4 different values corresponding to the 4 subgroups
-beta_Y_subgroups_formula <- function() {
-  beta_Y_1 <- NaN
-  beta_Y_2 <- NaN
-  beta_Y_3 <- NaN
-  beta_Y_4 <- NaN
-  
-  beta_Ys <- c(beta_Y_1, beta_Y_2, beta_Y_3, beta_Y_4)
-  
-  return (beta_Ys)
 }
 
 
@@ -231,20 +196,6 @@ determine_var_error_Y <- function(num_total_conf = NULL,
 }
 
 
-# Estimate the variance in the error term for Y
-# Same as above but with formula swapped out
-# Specifically this function gives the more-complicated "subgroups" formula
-determine_subgroup_var_error_Y <- function(num_total_conf = NULL,
-                                           beta_Xs        = NULL,
-                                           beta_Ys        = NULL,
-                                           causal         = NULL,
-                                           Z_correlation  = NULL,
-                                           target_r_sq_Y  = NULL) {
-  stop("To be implemented")
-  return (NaN)
-}
-
-
 # Estimate covariance matrix of entire system
 # Allows us to check in-one-go whether covariates are being generated properly
 determine_cov_matrix <- function(num_total_conf = NULL,
@@ -278,129 +229,6 @@ determine_cov_matrix <- function(num_total_conf = NULL,
     }
     else if (var_names[i] == 'Y') {
       analytic_cov[i, i] <- (num_total_conf * new_coef) + (causal^2) + var_error_Y + (num_of_cov_terms * new_coef * Z_correlation)
-    }
-    else {
-      analytic_cov[i, i] <- (sqrt(Z_correlation))^2 + (sqrt(1 - Z_correlation))^2
-    }
-  }
-  
-  # pairwise covariances
-  for (i in 1:num_vars) {
-    for (j in 1:num_vars) {
-      if (i == j) {
-        # diagonal, skip
-      }
-      else if (var_names[i] == 'X' & var_names[j] == 'Y') {
-        analytic_cov[i, j] <- NaN
-      }
-      else if (var_names[i] == 'Y' & var_names[j] == 'X') {
-        analytic_cov[i, j] <- NaN
-      }
-      else if (var_names[i] == 'X' & var_names[j] != 'Y') {
-        analytic_cov[i, j] <- NaN
-      }
-      else if (var_names[i] == 'Y' & var_names[j] != 'X') {
-        analytic_cov[i, j] <- NaN
-      }
-      else if (var_names[i] != 'X' & var_names[j] == 'Y') {
-        analytic_cov[i, j] <- NaN
-      }
-      else if (var_names[i] != 'Y' & var_names[j] == 'X') {
-        analytic_cov[i, j] <- NaN
-      }
-      else {
-        analytic_cov[i, j] <- Z_correlation
-      }
-    }
-  }
-  
-  return (analytic_cov)
-}
-
-
-# Estimate covariance matrix of entire system
-# Structurally same as above but with formulae swapped out
-# Specifically this function gives the more-complicated "subgroups" formulae for variances
-determine_subgroup_cov_matrix <- function(num_total_conf = NULL,
-                                          var_names      = NULL,
-                                          beta_Xs        = NULL,
-                                          beta_Ys        = NULL,
-                                          causal         = NULL,
-                                          Z_correlation  = NULL,
-                                          target_r_sq_X  = NULL,
-                                          target_r_sq_Y  = NULL) {
-  
-  num_vars         <- length(var_names)
-  num_of_cov_terms <- ((num_total_conf) * (num_total_conf - 1))
-  subgroup_size    <- num_total_conf / 4
-  
-  lambdas <- (causal * beta_Xs) + beta_Ys
-  
-  # print(beta_Xs)
-  # print(beta_Ys)
-  # print(lambdas)
-  # stop("dev")
-  
-  analytic_cov           <- matrix(NaN, num_vars, num_vars)
-  rownames(analytic_cov) <- var_names
-  colnames(analytic_cov) <- var_names
-  
-  var_error_Y <- determine_var_error_Y(num_total_conf = num_total_conf,
-                                       beta_X         = beta_X,
-                                       causal         = causal,
-                                       Z_correlation  = Z_correlation,
-                                       target_r_sq_Y  = target_r_sq_Y)
-  
-  # variances
-  # NB: i indexes over {1, ..., m, m+1, m+2} for variables {Y, X, Z1, ..., Zm}
-  for (i in 1:num_vars) {
-    # variances here
-    if (var_names[i] == 'X') {
-      
-      # NB: we use indexing variables j, k here to index over {1, 2, ..., m}
-      double_sum_of_products <- 0.0
-      for (j in 1:num_total_conf) {
-        for (k in 1:num_total_conf) {
-          if (j == k) {
-            # skip
-          }
-          else {
-            beta_Z_j <- beta_Xs[ ceiling(j / subgroup_size) ]
-            beta_Z_k <- beta_Xs[ ceiling(k / subgroup_size) ]
-            double_sum_of_products <- (double_sum_of_products + (beta_Z_j * beta_Z_k))
-          }
-        }
-      }
-      
-      cov_from_variances   <- (num_total_conf / 4) * (beta_Xs[1]^2 + beta_Xs[2]^2 + beta_Xs[3]^2 + beta_Xs[4]^2)
-      cov_from_covariances <- Z_correlation * double_sum_of_products # NB: Z_correlation = alpha^2
-      error_on_X           <- 1.0
-      
-      analytic_cov[i, i] <- cov_from_variances + cov_from_covariances + error_on_X
-    }
-    else if (var_names[i] == 'Y') {
-      
-      # NB: we use indexing variables j, k here to index over {1, 2, ..., m}
-      double_sum_of_products <- 0.0
-      for (j in 1:num_total_conf) {
-        for (k in 1:num_total_conf) {
-          if (j == k) {
-            # skip
-          }
-          else {
-            lambda_Z_j <- lambdas[ ceiling(j / subgroup_size) ]
-            lambda_Z_k <- lambdas[ ceiling(k / subgroup_size) ]
-            double_sum_of_products <- (double_sum_of_products + (lambda_Z_j * lambda_Z_k))
-          }
-        }
-      }
-      
-      cov_from_variances   <- (num_total_conf / 4) * (lambdas[1]^2 + lambdas[2]^2 + lambdas[3]^2 + lambdas[4]^2)
-      cov_from_covariances <- Z_correlation * double_sum_of_products # NB: Z_correlation = alpha^2
-      error_on_X           <- causal^2
-      error_on_Y           <- var_error_Y
-      
-      analytic_cov[i, i] <- cov_from_variances + cov_from_covariances + error_on_X + error_on_Y
     }
     else {
       analytic_cov[i, i] <- (sqrt(Z_correlation))^2 + (sqrt(1 - Z_correlation))^2
@@ -515,12 +343,6 @@ generate_dataset <- function() {
     dataset[, (2 + (1 * num_of_batches) + i)] <- Z2
     dataset[, (2 + (2 * num_of_batches) + i)] <- Z3
     dataset[, (2 + (3 * num_of_batches) + i)] <- Z4
-    
-    # TESTING
-    # print( (2 + (0 * num_of_batches) + i) )
-    # print( (2 + (1 * num_of_batches) + i) )
-    # print( (2 + (2 * num_of_batches) + i) )
-    # print( (2 + (3 * num_of_batches) + i) )
   }
   
   # add error terms to X and Y
@@ -677,10 +499,6 @@ for (repetition in 1:n_rep) {
       model_formula   <- make_model_formula(vars_selected = vars_selected)
       X_model_formula <- make_X_model_formula(vars_selected = vars_selected)
       
-      #print(lasso_model$beta)
-      #print(lasso_coefs)
-      #print(vars_selected)
-      
       model   <- lm(model_formula,   data = dataset)
       X_model <- lm(X_model_formula, data = X_dataset)
     }
@@ -791,20 +609,8 @@ analytic_cov_matrix <- determine_cov_matrix(num_total_conf = num_total_conf,
                                             target_r_sq_X  = target_r_sq_X,
                                             target_r_sq_Y  = target_r_sq_Y)
 
-# analytic_subgroup_cov_matrix <- determine_subgroup_cov_matrix(num_total_conf = num_total_conf,
-#                                                               var_names      = var_names,
-#                                                               beta_Xs        = c(beta_X, beta_X, beta_X, beta_X),
-#                                                               beta_Ys        = c(beta_X, beta_X, beta_X, beta_X),
-#                                                               causal         = causal,
-#                                                               Z_correlation  = Z_correlation,
-#                                                               target_r_sq_X  = target_r_sq_X,
-#                                                               target_r_sq_Y  = target_r_sq_Y)
-
 message("\n\nNon-subgroup Analytic Covariance:")
 print(analytic_cov_matrix)
-
-# message("\n\nSubgroup Analytic Covariance:")
-# print(analytic_subgroup_cov_matrix)
 
 observed_cov_matrix <- round_df(as.data.frame(cov(dataset)), digits=3)
 message("\n\nObserved Covariance:")
@@ -831,3 +637,6 @@ write.csv(final_cov_selection, paste("../data/", id_string, "_cov_selection.csv"
 
 write.csv(as.data.frame(analytic_cov_matrix), paste("../data/", id_string, "_analytic_cov_matrix.csv", sep=''))
 write.csv(as.data.frame(observed_cov_matrix), paste("../data/", id_string, "_observed_cov_matrix.csv", sep=''))
+
+
+

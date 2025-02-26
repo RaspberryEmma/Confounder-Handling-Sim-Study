@@ -39,7 +39,7 @@ if (Sys.getenv("RSTUDIO") == "1") {
 # ----- Parameters ------
 
 # Run
-n_simulation      <- 6 # see Table!
+n_simulation      <- 9 # see Table!
 
 n_obs             <- 10000
 n_rep             <- 2000
@@ -52,8 +52,9 @@ causal            <- 0.5
 binary_X            <- TRUE
 binary_X_prevalance <- 0.30
 binary_Y            <- TRUE
-binary_Y_prevalence <- 0.05
-binary_Z            <- FALSE
+binary_Y_prevalence <- 0.30
+binary_Z            <- TRUE
+binary_Z_prevalence <- 0.30
 
 # Scenario
 args = commandArgs(trailingOnly=TRUE)

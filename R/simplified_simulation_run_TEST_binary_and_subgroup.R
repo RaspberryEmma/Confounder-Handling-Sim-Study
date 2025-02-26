@@ -36,24 +36,36 @@ if (Sys.getenv("RSTUDIO") == "1") {
 
 
 
+# ----- Random Number Generation -----
+
+# # fix RNG seed based on current run and scenario
+# seeds_df <- read.csv(file = "../data/precomputed_RNG_seeds.csv")
+# seed     <- seeds_df %>%
+#   filter(simulation_run      == 1) %>%
+#   filter(simulation_scenario == 1)
+# set.seed(seed$seed)
+
+
+
 # ----- Parameters ------
 
 # Run
-n_simulation      <- 6 # see Table!
+n_simulation      <- "TEST" # see Table!
 
-n_obs             <- 10000
-n_rep             <- 2000
-Z_correlation     <- 0.2
-Z_subgroups       <- 4.0
-target_r_sq_X     <- 0.4
+n_rep             <- 100 # 2000
+n_obs             <- 10000 # 10000
+Z_correlation     <- 0.0 # 0.2
+target_r_sq_X     <- 0.1 # 0.2
 target_r_sq_Y     <- 0.4
-causal            <- 0.5
+causal            <- 0.15 # 0.5
+dissimilarity_rho <- 1.0
 
-binary_X            <- TRUE
-binary_X_prevalance <- 0.30
-binary_Y            <- TRUE
-binary_Y_prevalence <- 0.05
+binary_X            <- FALSE
+binary_X_propensity <- 0.30 # NB: Implied by R2X = 0.1 (I think?)
+binary_Y            <- FALSE
+binary_Y_propensity <- 0.30  # 0.05 or 0.30
 binary_Z            <- FALSE
+binary_Z_propensity <- 0.30
 
 # Scenario
 args = commandArgs(trailingOnly=TRUE)
@@ -64,22 +76,11 @@ if (length(args) > 0) {
   num_unmeas_conf <- as.numeric(args[4])
   
 } else {
-  n_scenario      <- 1
+  n_scenario      <- "TEST"
   num_total_conf  <- 16
   num_meas_conf   <- 16
   num_unmeas_conf <- 0
 }
-
-
-
-# ----- Random Number Generation -----
-
-# fix RNG seed based on current run and scenario
-seeds_df <- read.csv(file = "../data/precomputed_RNG_seeds.csv")
-seed     <- seeds_df %>%
-  filter(simulation_run      == n_simulation) %>%
-  filter(simulation_scenario == n_scenario)
-set.seed(seed$seed)
 
 
 
@@ -546,7 +547,7 @@ generate_dataset <- function() {
       dataset <- dataset[, !(names(dataset) %in% drop)]
     }
   }
-  
+
   return (dataset)
 }
 

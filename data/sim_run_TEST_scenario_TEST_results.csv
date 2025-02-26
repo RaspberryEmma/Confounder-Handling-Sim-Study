@@ -1,7 +1,7 @@
-"","pred_mse","model_SE","emp_SE","mcse","r_squared_X","r_squared_Y","pseudo_r_squared_X","pseudo_r_squared_Y","causal_true_value","causal_estimate","causal_bias","causal_coverage","open_paths","blocked_paths"
-"linear",1.2,0.0353,0.0321,0.000321,0.21,0.41,NA,NA,0.5,0.505,0.00467,0.97,16,16
-"linear_unadjusted",1.43,0.0339,0.0329,0.000329,-0.00098,0.302,NA,NA,0.5,0.703,0.203,0,16,0
-"stepwise",1.21,0.0348,0.0328,0.000328,0.185,0.408,NA,NA,0.5,0.513,0.0128,0.95,16,10.5
-"stepwise_X",1.23,0.0356,0.0321,0.000321,0.207,0.398,NA,NA,0.5,0.511,0.0112,0.97,16,11.3
-"two_step_lasso",1.2,0.0352,0.0322,0.000322,0.206,0.41,NA,NA,0.5,0.504,0.00414,0.96,16,15
-"two_step_lasso_X",1.21,0.0354,0.0323,0.000323,0.21,0.408,NA,NA,0.5,0.504,0.00433,0.95,16,15.2
+"","pred_mse","model_SE","emp_SE","r_squared_X","r_squared_Y","causal_true_value","causal_estimate","causal_bias","causal_coverage","open_paths","blocked_paths"
+"linear",8.89,0.0752,0.0692,NA,NA,0.15,0.154,0.0037,0.97,16,16
+"linear_unadjusted",8.21,0.0739,0.068,NA,NA,0.15,0.262,0.112,0.68,16,0
+"stepwise",8.88,0.0751,0.069,NA,NA,0.15,0.156,0.00618,0.96,16,14.9
+"stepwise_X",8.84,0.0751,0.0689,NA,NA,0.15,0.156,0.00564,0.97,16,15
+"two_step_lasso",8.89,0.0751,0.0692,NA,NA,0.15,0.154,0.00371,0.97,16,16
+"two_step_lasso_X",8.88,0.0751,0.0691,NA,NA,0.15,0.154,0.00371,0.97,16,16
