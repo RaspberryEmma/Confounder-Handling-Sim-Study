@@ -41,8 +41,8 @@ if (Sys.getenv("RSTUDIO") == "1") {
 # Run
 n_simulation      <- 3 # see Table!
 
-n_obs             <- 10000
-n_rep             <- 2000
+n_obs             <- 1000 # 10000
+n_rep             <- 100 # 2000
 Z_correlation     <- 0.2
 Z_subgroups       <- 4.0
 target_r_sq_X     <- 0.2

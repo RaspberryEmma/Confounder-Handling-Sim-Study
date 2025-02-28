@@ -871,14 +871,13 @@ message("\n\nObserved Covariate Selection")
 print(final_cov_selection)
 
 # Covariance Matrices
-analytic_cov_matrix <- determine_cov_matrix(num_total_conf = num_total_conf,
-                                            var_names      = var_names,
-                                            beta_X         = beta_X,
-                                            beta_Y         = beta_Y,
-                                            causal         = causal,
-                                            Z_correlation  = Z_correlation,
-                                            target_r_sq_X  = target_r_sq_X,
-                                            target_r_sq_Y  = target_r_sq_Y)
+analytic_cov_matrix <- determine_subgroup_cov_matrix(num_total_conf = num_total_conf,
+                                                     var_names      = var_names,
+                                                     beta_X         = beta_X,
+                                                     causal         = causal,
+                                                     Z_correlation  = Z_correlation,
+                                                     target_r_sq_X  = target_r_sq_X,
+                                                     target_r_sq_Y  = target_r_sq_Y)
 
 message("\n\nNon-subgroup non-binary Analytic Covariance:")
 print(analytic_cov_matrix)
