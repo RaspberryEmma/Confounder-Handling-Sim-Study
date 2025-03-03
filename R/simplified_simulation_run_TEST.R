@@ -517,21 +517,24 @@ generate_dataset <- function() {
   # binarize X if binary
   # NB: R2X = 0.1 here for binary
   if (binary_X) {
-    logit_prob_X  <- X                                          # interpret existing values as logit(probability)
+    # NB: intercept term of logit expression controls prevalence (mean) of binary var
+    logit_prob_X  <- X - 0.87                                   # interpret existing values as logit(probability)
     prob_X        <- inverse_logit(logit_prob_X)                # apply inverse to obtain prob values
-    binary_vals_X <- 0.53 * rbinom(n = n_obs, size = 1, prob = prob_X) # re-sample to obtain X
+    binary_vals_X <- rbinom(n = n_obs, size = 1, prob = prob_X) # re-sample to obtain X
     X             <- binary_vals_X                              # write binary values over previous continuous values
   }
   
   # add causal effect (X on Y)
   # NB: causal = 0.15 for binary
-  Y <- Y + (causal * X)
+  Y <- Y + (causal * X) 
   
   # binarize Y if binary
   if (binary_Y) {
-    logit_prob_Y  <- Y                                          # interpret existing values as logit(probability)
+    # NB: intercept term of logit expression controls prevalence (mean) of binary var
+    # common Y: intercept = 1.1; rare Y: intercept = 3.1
+    logit_prob_Y  <- Y - 1.1                                    # interpret existing values as logit(probability)
     prob_Y        <- inverse_logit(logit_prob_Y)                # apply inverse to obtain prob values
-    binary_vals_Y <- 0.097 * rbinom(n = n_obs, size = 1, prob = prob_Y) # re-sample to obtain Y
+    binary_vals_Y <- rbinom(n = n_obs, size = 1, prob = prob_Y) # re-sample to obtain Y
     Y             <- binary_vals_Y                              # write binary values over previous continuous values
   }
   
@@ -859,15 +862,24 @@ final_cov_selection <- round_df(final_cov_selection, digits=3)
 
 # Prevalences of binary variables
 message("\n\nMeans of X, Y, Zi, equal to prevalence if binary")
-print("X:")
+
+message("\nX:")
 print(binary_X_prevalence)
 print(summary(dataset$X))
-print("Y:")
+print(var(dataset$X))
+
+message("\nY:")
 print(binary_Y_prevalence)
 print(summary(dataset$Y))
-print("Z1:")
+print(var(dataset$Y))
+
+message("\nZ1:")
 print(binary_Z_prevalence)
 print(summary(dataset$Z1))
+print(var(dataset$Z1))
+
+print(head(dataset))
+stop("dev")
 
 # Coefficients fitted and error-variance fitted
 message("\n\nTrue Coefficients of DAG and Variance of error of Y")

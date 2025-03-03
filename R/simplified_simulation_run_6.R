@@ -6,7 +6,7 @@
 # Emma Tarmey
 #
 # Started:          06/02/2025
-# Most Recent Edit: 26/02/2025
+# Most Recent Edit: 03/03/2025
 # ****************************************
 
 
@@ -45,14 +45,14 @@ n_obs             <- 10000
 n_rep             <- 2000
 Z_correlation     <- 0.2
 Z_subgroups       <- 4.0
-target_r_sq_X     <- 0.4
+target_r_sq_X     <- 0.1  # binary X
 target_r_sq_Y     <- 0.4
-causal            <- 0.5
+causal            <- 0.15 # binary Y
 
 binary_X            <- TRUE
 binary_X_prevalance <- 0.30
 binary_Y            <- TRUE
-binary_Y_prevalence <- 0.05
+binary_Y_prevalence <- 0.05 # rare
 binary_Z            <- FALSE
 
 # Scenario
@@ -447,6 +447,7 @@ generate_dataset <- function() {
   }
   else {
     if (Z_correlation == 0.0) {
+      # uncorrelated binary case
       for (i in 1:num_of_batches) {
         # independent error terms
         uniform_prior_U_Z1 <- runif(n = n_obs, min = 0, max = 1)
@@ -455,10 +456,10 @@ generate_dataset <- function() {
         uniform_prior_U_Z4 <- runif(n = n_obs, min = 0, max = 1)
         
         # confounders Z
-        Z1 <- 2.06 * rbinom(n = n_obs, size = 1, prob = inverse_logit(uniform_prior_U_Z1))
-        Z2 <- 2.06 * rbinom(n = n_obs, size = 1, prob = inverse_logit(uniform_prior_U_Z2))
-        Z3 <- 2.06 * rbinom(n = n_obs, size = 1, prob = inverse_logit(uniform_prior_U_Z3))
-        Z4 <- 2.06 * rbinom(n = n_obs, size = 1, prob = inverse_logit(uniform_prior_U_Z4))
+        Z1 <- 2.06 * rbinom(n = n_obs, size = 1, prob = inverse_logit(uniform_prior_U_Z1)) - 0.99
+        Z2 <- 2.06 * rbinom(n = n_obs, size = 1, prob = inverse_logit(uniform_prior_U_Z2)) - 0.99
+        Z3 <- 2.06 * rbinom(n = n_obs, size = 1, prob = inverse_logit(uniform_prior_U_Z3)) - 0.99
+        Z4 <- 2.06 * rbinom(n = n_obs, size = 1, prob = inverse_logit(uniform_prior_U_Z4)) - 0.99
         
         # add confounder effect on treatment variable X and outcome variable Y
         X  <- X + (beta_Xs[1] * Z1) + (beta_Xs[2] * Z2) + (beta_Xs[3] * Z3) + (beta_Xs[4] * Z4)
@@ -473,14 +474,15 @@ generate_dataset <- function() {
       }
     }
     else {
+      # correlated binary case
       uniform_prior_U <- runif(n = n_obs, min = 0, max = 1)
       
       for (i in 1:num_of_batches) {
         # confounders Z
-        Z1 <- 2.06 * rbinom(n = n_obs, size = 1, prob = inverse_logit(uniform_prior_U))
-        Z2 <- 2.06 * rbinom(n = n_obs, size = 1, prob = inverse_logit(uniform_prior_U))
-        Z3 <- 2.06 * rbinom(n = n_obs, size = 1, prob = inverse_logit(uniform_prior_U))
-        Z4 <- 2.06 * rbinom(n = n_obs, size = 1, prob = inverse_logit(uniform_prior_U))
+        Z1 <- 2.06 * rbinom(n = n_obs, size = 1, prob = inverse_logit(uniform_prior_U)) - 0.99
+        Z2 <- 2.06 * rbinom(n = n_obs, size = 1, prob = inverse_logit(uniform_prior_U)) - 0.99
+        Z3 <- 2.06 * rbinom(n = n_obs, size = 1, prob = inverse_logit(uniform_prior_U)) - 0.99
+        Z4 <- 2.06 * rbinom(n = n_obs, size = 1, prob = inverse_logit(uniform_prior_U)) - 0.99
         
         # add confounder effect on treatment variable X and outcome variable Y
         X  <- X + (beta_Xs[1] * Z1) + (beta_Xs[2] * Z2) + (beta_Xs[3] * Z3) + (beta_Xs[4] * Z4)
@@ -511,7 +513,8 @@ generate_dataset <- function() {
   # binarize X if binary
   # NB: R2X = 0.1 here for binary
   if (binary_X) {
-    logit_prob_X  <- X                                          # interpret existing values as logit(probability)
+    # NB: intercept term of logit expression controls prevalence (mean) of binary var
+    logit_prob_X  <- X - 0.87                                   # interpret existing values as logit(probability)
     prob_X        <- inverse_logit(logit_prob_X)                # apply inverse to obtain prob values
     binary_vals_X <- rbinom(n = n_obs, size = 1, prob = prob_X) # re-sample to obtain X
     X             <- binary_vals_X                              # write binary values over previous continuous values
@@ -519,11 +522,13 @@ generate_dataset <- function() {
   
   # add causal effect (X on Y)
   # NB: causal = 0.15 for binary
-  Y <- Y + (causal * X)
+  Y <- Y + (causal * X) 
   
   # binarize Y if binary
   if (binary_Y) {
-    logit_prob_Y  <- Y                                          # interpret existing values as logit(probability)
+    # NB: intercept term of logit expression controls prevalence (mean) of binary var
+    # common Y: intercept = 1.1; rare Y: intercept = 3.1
+    logit_prob_Y  <- Y - 3.1                                    # interpret existing values as logit(probability)
     prob_Y        <- inverse_logit(logit_prob_Y)                # apply inverse to obtain prob values
     binary_vals_Y <- rbinom(n = n_obs, size = 1, prob = prob_Y) # re-sample to obtain Y
     Y             <- binary_vals_Y                              # write binary values over previous continuous values
