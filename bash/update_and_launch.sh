@@ -10,7 +10,7 @@
 # Emma Tarmey
 #
 # Started:          11/02/2025
-# Most Recent Edit: 03/03/2025
+# Most Recent Edit: 10/03/2025
 # ****************************************
 
 echo ""
@@ -30,7 +30,7 @@ module load languages/python/3.12.3
 
 # submit simulation to BP HPC
 #sbatch launch_BP_run_TEST.sh
-for i in 3 4 5 6 7 8 9;
+for i in 2 4 5 6 7 8 9;
 do
 	echo "Submitting job: launch_BP_run_"$i".sh"
 	sbatch "launch_BP_run_"$i".sh"
