@@ -6,7 +6,7 @@
 # Emma Tarmey
 #
 # Started:          06/02/2025
-# Most Recent Edit: 03/03/2025
+# Most Recent Edit: 14/03/2025
 # ****************************************
 
 
@@ -45,7 +45,7 @@ n_obs             <- 10000
 n_rep             <- 2000
 Z_correlation     <- 0.2
 Z_subgroups       <- 4.0
-target_r_sq_X     <- 0.1  # binary X
+target_r_sq_X     <- 0.6  # binary X
 target_r_sq_Y     <- 0.4
 causal            <- 0.15 # binary Y
 
@@ -456,10 +456,10 @@ generate_dataset <- function() {
         uniform_prior_U_Z4 <- runif(n = n_obs, min = 0, max = 1)
         
         # confounders Z
-        Z1 <- 2.06 * rbinom(n = n_obs, size = 1, prob = inverse_logit(uniform_prior_U_Z1)) - 0.99
-        Z2 <- 2.06 * rbinom(n = n_obs, size = 1, prob = inverse_logit(uniform_prior_U_Z2)) - 0.99
-        Z3 <- 2.06 * rbinom(n = n_obs, size = 1, prob = inverse_logit(uniform_prior_U_Z3)) - 0.99
-        Z4 <- 2.06 * rbinom(n = n_obs, size = 1, prob = inverse_logit(uniform_prior_U_Z4)) - 0.99
+        Z1 <- 2.06 * rbinom(n = n_obs, size = 1, prob = inverse_logit(uniform_prior_U_Z1)) - 0.94
+        Z2 <- 2.06 * rbinom(n = n_obs, size = 1, prob = inverse_logit(uniform_prior_U_Z2)) - 0.94
+        Z3 <- 2.06 * rbinom(n = n_obs, size = 1, prob = inverse_logit(uniform_prior_U_Z3)) - 0.94
+        Z4 <- 2.06 * rbinom(n = n_obs, size = 1, prob = inverse_logit(uniform_prior_U_Z4)) - 0.94
         
         # add confounder effect on treatment variable X and outcome variable Y
         X  <- X + (beta_Xs[1] * Z1) + (beta_Xs[2] * Z2) + (beta_Xs[3] * Z3) + (beta_Xs[4] * Z4)
@@ -479,10 +479,10 @@ generate_dataset <- function() {
       
       for (i in 1:num_of_batches) {
         # confounders Z
-        Z1 <- 2.06 * rbinom(n = n_obs, size = 1, prob = inverse_logit(uniform_prior_U)) - 0.99
-        Z2 <- 2.06 * rbinom(n = n_obs, size = 1, prob = inverse_logit(uniform_prior_U)) - 0.99
-        Z3 <- 2.06 * rbinom(n = n_obs, size = 1, prob = inverse_logit(uniform_prior_U)) - 0.99
-        Z4 <- 2.06 * rbinom(n = n_obs, size = 1, prob = inverse_logit(uniform_prior_U)) - 0.99
+        Z1 <- 2.06 * rbinom(n = n_obs, size = 1, prob = inverse_logit(uniform_prior_U)) - 0.94
+        Z2 <- 2.06 * rbinom(n = n_obs, size = 1, prob = inverse_logit(uniform_prior_U)) - 0.94
+        Z3 <- 2.06 * rbinom(n = n_obs, size = 1, prob = inverse_logit(uniform_prior_U)) - 0.94
+        Z4 <- 2.06 * rbinom(n = n_obs, size = 1, prob = inverse_logit(uniform_prior_U)) - 0.94
         
         # add confounder effect on treatment variable X and outcome variable Y
         X  <- X + (beta_Xs[1] * Z1) + (beta_Xs[2] * Z2) + (beta_Xs[3] * Z3) + (beta_Xs[4] * Z4)
@@ -511,10 +511,10 @@ generate_dataset <- function() {
   }
   
   # binarize X if binary
-  # NB: R2X = 0.1 here for binary
+  # NB: R2X = 0.6 here for binary
   if (binary_X) {
     # NB: intercept term of logit expression controls prevalence (mean) of binary var
-    logit_prob_X  <- X - 0.87                                   # interpret existing values as logit(probability)
+    logit_prob_X  <- X - 1.40                                   # interpret existing values as logit(probability)
     prob_X        <- inverse_logit(logit_prob_X)                # apply inverse to obtain prob values
     binary_vals_X <- rbinom(n = n_obs, size = 1, prob = prob_X) # re-sample to obtain X
     X             <- binary_vals_X                              # write binary values over previous continuous values
@@ -527,8 +527,8 @@ generate_dataset <- function() {
   # binarize Y if binary
   if (binary_Y) {
     # NB: intercept term of logit expression controls prevalence (mean) of binary var
-    # common Y: intercept = 1.1; rare Y: intercept = 3.1
-    logit_prob_Y  <- Y - 3.1                                    # interpret existing values as logit(probability)
+    # common Y: intercept = 1.45; rare Y: intercept = 3.71
+    logit_prob_Y  <- Y - 3.71                                    # interpret existing values as logit(probability)
     prob_Y        <- inverse_logit(logit_prob_Y)                # apply inverse to obtain prob values
     binary_vals_Y <- rbinom(n = n_obs, size = 1, prob = prob_Y) # re-sample to obtain Y
     Y             <- binary_vals_Y                              # write binary values over previous continuous values
@@ -562,7 +562,7 @@ generate_dataset <- function() {
 
 model_methods <- c("linear", "linear_unadjusted",
                    "stepwise", "stepwise_X",
-                   "two_step_lasso", "two_step_lasso_X")
+                   "two_step_lasso", "two_step_lasso_X", "two_step_lasso_union")
 
 results_methods <- c("pred_mse", "model_SE", "emp_SE",
                      "r_squared_X", "r_squared_Y",
@@ -777,6 +777,66 @@ for (repetition in 1:n_rep) {
       vars_selected <- union(c('X'), vars_selected) # always select X
       vars_selected <- vars_selected[vars_selected != "(Intercept)"]
       
+      model_formula   <- make_model_formula(vars_selected = vars_selected)
+      X_model_formula <- make_X_model_formula(vars_selected = vars_selected)
+      
+      if (binary_Y) {
+        model <- glm(model_formula, data = dataset, family = "binomial")
+      }
+      else {
+        model <- lm(model_formula,  data = dataset)
+      }
+      if (binary_X) {
+        X_model <- glm(X_model_formula, data = X_dataset, family = "binomial")
+      }
+      else {
+        X_model <- lm(X_model_formula,  data = X_dataset)
+      }
+    }
+    
+    else if (method == "two_step_lasso_union") {
+      # X model
+      if (binary_X) {
+        cv_lasso_X_model <- cv.glmnet(x = data.matrix(Z_dataset), y = data.matrix(X_column), family = 'binomial', alpha=1)
+        lambda_X         <- cv_lasso_X_model$lambda.min
+        lasso_X_model    <- glmnet(x = data.matrix(Z_dataset), y = data.matrix(X_column), family = 'binomial', alpha=1, lambda=lambda_X)
+      }
+      else {
+        cv_lasso_X_model <- cv.glmnet(x = data.matrix(Z_dataset), y = data.matrix(X_column), alpha=1)
+        lambda_X         <- cv_lasso_X_model$lambda.min
+        lasso_X_model    <- glmnet(x = data.matrix(Z_dataset), y = data.matrix(X_column), alpha=1, lambda=lambda_X)
+      }
+      
+      lasso_X_coefs        <- as.vector(lasso_X_model$beta)
+      names(lasso_X_coefs) <- rownames(lasso_X_model$beta)
+      
+      X_vars_selected <- names(lasso_X_coefs[lasso_X_coefs != 0.0])
+      X_vars_selected <- union(c('X'), X_vars_selected) # always select X
+      X_vars_selected <- X_vars_selected[X_vars_selected != "(Intercept)"]
+      
+      
+      # Y model
+      if (binary_Y) {
+        cv_lasso_Y_model <- cv.glmnet(x = data.matrix(X_dataset), y = data.matrix(Y_column), family = 'binomial', alpha=1)
+        lambda_Y         <- cv_lasso_Y_model$lambda.min
+        lasso_Y_model    <- glmnet(x = data.matrix(X_dataset), y = data.matrix(Y_column), family = 'binomial', alpha=1, lambda=lambda_Y)
+      }
+      else {
+        cv_lasso_Y_model <- cv.glmnet(x = data.matrix(X_dataset), y = data.matrix(Y_column), alpha=1)
+        lambda_Y         <- cv_lasso_Y_model$lambda.min
+        lasso_Y_model    <- glmnet(x = data.matrix(X_dataset), y = data.matrix(Y_column), alpha=1, lambda=lambda_Y)
+      }
+      
+      lasso_Y_coefs        <- as.vector(lasso_Y_model$beta)
+      names(lasso_Y_coefs) <- rownames(lasso_Y_model$beta)
+      
+      Y_vars_selected <- names(lasso_Y_coefs[lasso_Y_coefs != 0.0])
+      Y_vars_selected <- union(c('X'), Y_vars_selected) # always select X
+      Y_vars_selected <- Y_vars_selected[Y_vars_selected != "(Intercept)"]
+      
+      
+      # union model
+      vars_selected   <- union(X_vars_selected, Y_vars_selected)
       model_formula   <- make_model_formula(vars_selected = vars_selected)
       X_model_formula <- make_X_model_formula(vars_selected = vars_selected)
       

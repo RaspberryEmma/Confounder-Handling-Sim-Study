@@ -7,7 +7,7 @@
 # Emma Tarmey
 #
 # Started:          10/02/2025
-# Most Recent Edit: 10/02/2025
+# Most Recent Edit: 14/03/2025
 # ****************************************
 
 
@@ -40,5 +40,30 @@
 #   
 #   return (dataset)
 # }
+
+
+
+# # Prevalences of binary variables
+# message("\n\nMeans of X, Y, Zi, equal to prevalence if binary")
+# 
+# message("\nX:")
+# print(binary_X_prevalence)
+# print(summary(dataset$X))
+# print(var(dataset$X))
+# 
+# message("\nY:")
+# print(binary_Y_prevalence)
+# print(summary(dataset$Y))
+# print(var(dataset$Y))
+# 
+# message("\nZ1:")
+# print(binary_Z_prevalence)
+# print(summary(dataset$Z1))
+# print(var(dataset$Z1))
+# 
+# message("\n\nData:")
+# print(head(dataset))
+
+
 
 

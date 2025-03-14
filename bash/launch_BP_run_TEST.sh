@@ -9,16 +9,16 @@
 # Emma Tarmey
 #
 # Started:          11/02/2025
-# Most Recent Edit: 11/02/2025
+# Most Recent Edit: 14/02/2025
 # ****************************************
 #
 #SBATCH --partition=compute
-#SBATCH --job-name=conf_sim_study_run_TEST
+#SBATCH --job-name=scenario_TEST
 #SBATCH --nodes=1
 #SBATCH --ntasks-per-node=1
 #SBATCH --cpus-per-task=16
 #SBATCH --time=4-00:00:00
-#SBATCH --mem-per-cpu=20G
+#SBATCH --mem-per-cpu=4G
 #SBATCH --account=MATH033344
 #SBATCH --mail-type=ALL
 #SBATCH --mail-user=aa22294@bristol.ac.uk

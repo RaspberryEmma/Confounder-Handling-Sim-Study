@@ -9,16 +9,16 @@
 # Emma Tarmey
 #
 # Started:          11/02/2025
-# Most Recent Edit: 10/03/2025
+# Most Recent Edit: 14/03/2025
 # ****************************************
 #
 #SBATCH --partition=compute
-#SBATCH --job-name=conf_sim_study_run_4
+#SBATCH --job-name=scenario_4
 #SBATCH --nodes=1
 #SBATCH --ntasks-per-node=1
 #SBATCH --cpus-per-task=16
 #SBATCH --time=4-00:00:00
-#SBATCH --mem-per-cpu=20G
+#SBATCH --mem-per-cpu=4G
 #SBATCH --account=MATH033344
 #SBATCH --mail-type=ALL
 #SBATCH --mail-user=aa22294@bristol.ac.uk
@@ -45,12 +45,12 @@ module load languages/R/4.4.1
 # Execute code
 # NB: we pass in the following:
 # (#scenario) (#total confounders) (#measured) (#unmeasured)
-# Rscript simplified_simulation_run_4.R 1  16  16  0
-# Rscript simplified_simulation_run_4.R 2  16  12  4
-# Rscript simplified_simulation_run_4.R 3  32  32  0
-# Rscript simplified_simulation_run_4.R 4  32  24  8
-# Rscript simplified_simulation_run_4.R 5  64  64  0
-# Rscript simplified_simulation_run_4.R 6  64  48 16
+Rscript simplified_simulation_run_4.R 1  16  16  0
+Rscript simplified_simulation_run_4.R 2  16  12  4
+Rscript simplified_simulation_run_4.R 3  32  32  0
+Rscript simplified_simulation_run_4.R 4  32  24  8
+Rscript simplified_simulation_run_4.R 5  64  64  0
+Rscript simplified_simulation_run_4.R 6  64  48 16
 Rscript simplified_simulation_run_4.R 7 128 128  0
 Rscript simplified_simulation_run_4.R 8 128  96 32
 

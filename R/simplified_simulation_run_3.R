@@ -6,7 +6,7 @@
 # Emma Tarmey
 #
 # Started:          06/02/2025
-# Most Recent Edit: 26/02/2025
+# Most Recent Edit: 14/03/2025
 # ****************************************
 
 
@@ -41,8 +41,8 @@ if (Sys.getenv("RSTUDIO") == "1") {
 # Run
 n_simulation      <- 3 # see Table!
 
-n_obs             <- 1000 # 10000
-n_rep             <- 100 # 2000
+n_obs             <- 10000
+n_rep             <- 2000
 Z_correlation     <- 0.2
 Z_subgroups       <- 4.0
 target_r_sq_X     <- 0.2
@@ -448,7 +448,7 @@ generate_dataset <- function() {
 
 model_methods <- c("linear", "linear_unadjusted",
                    "stepwise", "stepwise_X",
-                   "two_step_lasso", "two_step_lasso_X")
+                   "two_step_lasso", "two_step_lasso_X", "two_step_lasso_union")
 
 results_methods <- c("pred_mse", "model_SE", "emp_SE",
                      "r_squared_X", "r_squared_Y",
@@ -590,6 +590,66 @@ for (repetition in 1:n_rep) {
       
       model   <- lm(model_formula,   data = dataset)
       X_model <- lm(X_model_formula, data = X_dataset)
+    }
+    
+    else if (method == "two_step_lasso_union") {
+      # X model
+      if (binary_X) {
+        cv_lasso_X_model <- cv.glmnet(x = data.matrix(Z_dataset), y = data.matrix(X_column), family = 'binomial', alpha=1)
+        lambda_X         <- cv_lasso_X_model$lambda.min
+        lasso_X_model    <- glmnet(x = data.matrix(Z_dataset), y = data.matrix(X_column), family = 'binomial', alpha=1, lambda=lambda_X)
+      }
+      else {
+        cv_lasso_X_model <- cv.glmnet(x = data.matrix(Z_dataset), y = data.matrix(X_column), alpha=1)
+        lambda_X         <- cv_lasso_X_model$lambda.min
+        lasso_X_model    <- glmnet(x = data.matrix(Z_dataset), y = data.matrix(X_column), alpha=1, lambda=lambda_X)
+      }
+      
+      lasso_X_coefs        <- as.vector(lasso_X_model$beta)
+      names(lasso_X_coefs) <- rownames(lasso_X_model$beta)
+      
+      X_vars_selected <- names(lasso_X_coefs[lasso_X_coefs != 0.0])
+      X_vars_selected <- union(c('X'), X_vars_selected) # always select X
+      X_vars_selected <- X_vars_selected[X_vars_selected != "(Intercept)"]
+      
+      
+      # Y model
+      if (binary_Y) {
+        cv_lasso_Y_model <- cv.glmnet(x = data.matrix(X_dataset), y = data.matrix(Y_column), family = 'binomial', alpha=1)
+        lambda_Y         <- cv_lasso_Y_model$lambda.min
+        lasso_Y_model    <- glmnet(x = data.matrix(X_dataset), y = data.matrix(Y_column), family = 'binomial', alpha=1, lambda=lambda_Y)
+      }
+      else {
+        cv_lasso_Y_model <- cv.glmnet(x = data.matrix(X_dataset), y = data.matrix(Y_column), alpha=1)
+        lambda_Y         <- cv_lasso_Y_model$lambda.min
+        lasso_Y_model    <- glmnet(x = data.matrix(X_dataset), y = data.matrix(Y_column), alpha=1, lambda=lambda_Y)
+      }
+      
+      lasso_Y_coefs        <- as.vector(lasso_Y_model$beta)
+      names(lasso_Y_coefs) <- rownames(lasso_Y_model$beta)
+      
+      Y_vars_selected <- names(lasso_Y_coefs[lasso_Y_coefs != 0.0])
+      Y_vars_selected <- union(c('X'), Y_vars_selected) # always select X
+      Y_vars_selected <- Y_vars_selected[Y_vars_selected != "(Intercept)"]
+      
+      
+      # union model
+      vars_selected   <- union(X_vars_selected, Y_vars_selected)
+      model_formula   <- make_model_formula(vars_selected = vars_selected)
+      X_model_formula <- make_X_model_formula(vars_selected = vars_selected)
+      
+      if (binary_Y) {
+        model <- glm(model_formula, data = dataset, family = "binomial")
+      }
+      else {
+        model <- lm(model_formula,  data = dataset)
+      }
+      if (binary_X) {
+        X_model <- glm(X_model_formula, data = X_dataset, family = "binomial")
+      }
+      else {
+        X_model <- lm(X_model_formula,  data = X_dataset)
+      }
     }
     
     # record model coefficients
