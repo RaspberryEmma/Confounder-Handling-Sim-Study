@@ -2,6 +2,7 @@
 # Confounder Handling Simulation Study
 #
 # Simplified, less flexible refactor of all existing sim code
+# Null simulation (causal effect = 0.0)
 #
 # Emma Tarmey
 #
@@ -39,20 +40,19 @@ if (Sys.getenv("RSTUDIO") == "1") {
 # ----- Parameters ------
 
 # Run
-n_simulation      <- 6 # see Table!
+n_simulation      <- 5 # see Table!
 
 n_obs             <- 10000
 n_rep             <- 2000
 Z_correlation     <- 0.2
 Z_subgroups       <- 4.0
-target_r_sq_X     <- 0.6  # binary X
+target_r_sq_X     <- 0.6 # binary X
 target_r_sq_Y     <- 0.4
-causal            <- 0.15 # binary Y
+causal            <- 0.0 # null simulation
 
 binary_X            <- TRUE
-binary_X_prevalance <- 0.30
-binary_Y            <- TRUE
-binary_Y_prevalence <- 0.05 # rare
+binary_X_prevalence <- 0.30
+binary_Y            <- FALSE
 binary_Z            <- FALSE
 
 # Scenario
@@ -528,7 +528,21 @@ generate_dataset <- function() {
   if (binary_Y) {
     # NB: intercept term of logit expression controls prevalence (mean) of binary var
     # common Y: intercept = 1.45; rare Y: intercept = 3.71
-    logit_prob_Y  <- Y - 3.71                                    # interpret existing values as logit(probability)
+    logit_prob_Y  <- Y - 1.45                                    # interpret existing values as logit(probability)
+    prob_Y        <- inverse_logit(logit_prob_Y)                # apply inverse to obtain prob values
+    binary_vals_Y <- rbinom(n = n_obs, size = 1, prob = prob_Y) # re-sample to obtain Y
+    Y             <- binary_vals_Y                              # write binary values over previous continuous values
+  }
+  
+  # add causal effect (X on Y)
+  # NB: causal = 0.15 for binary
+  Y <- Y + (causal * X) 
+  
+  # binarize Y if binary
+  if (binary_Y) {
+    # NB: intercept term of logit expression controls prevalence (mean) of binary var
+    # common Y: intercept = 1.1; rare Y: intercept = 3.1
+    logit_prob_Y  <- Y - 1.1                                    # interpret existing values as logit(probability)
     prob_Y        <- inverse_logit(logit_prob_Y)                # apply inverse to obtain prob values
     binary_vals_Y <- rbinom(n = n_obs, size = 1, prob = prob_Y) # re-sample to obtain Y
     Y             <- binary_vals_Y                              # write binary values over previous continuous values
@@ -973,6 +987,5 @@ write.csv(final_cov_selection, paste("../data/", id_string, "_cov_selection.csv"
 
 write.csv(as.data.frame(analytic_cov_matrix), paste("../data/", id_string, "_analytic_cov_matrix.csv", sep=''))
 write.csv(as.data.frame(observed_cov_matrix), paste("../data/", id_string, "_observed_cov_matrix.csv", sep=''))
-
 
 

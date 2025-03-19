@@ -6,7 +6,7 @@
 # Emma Tarmey
 #
 # Started:          06/02/2025
-# Most Recent Edit: 14/03/2025
+# Most Recent Edit: 19/03/2025
 # ****************************************
 
 
@@ -882,8 +882,10 @@ for (repetition in 1:n_rep) {
     
     within_CI <- 0.0
     CI        <- confint(model, 'X', level = 0.95)
-    if ((causal > CI[1]) && (causal < CI[2])) {
-      within_CI <- 1.0
+    if ((!is.na(CI[1])) && (!is.na(CI[2]))) {
+      if ((causal > CI[1]) && (causal < CI[2])) {
+        within_CI <- 1.0
+      }
     }
     results[ method, "causal_coverage", repetition]   <- within_CI
     

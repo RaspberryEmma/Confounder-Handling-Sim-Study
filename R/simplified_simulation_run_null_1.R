@@ -2,7 +2,8 @@
 # Confounder Handling Simulation Study
 #
 # Simplified, less flexible refactor of all existing sim code
-#
+# Null simulation (causal effect = 0.0)
+# 
 # Emma Tarmey
 #
 # Started:          06/02/2025
@@ -39,21 +40,19 @@ if (Sys.getenv("RSTUDIO") == "1") {
 # ----- Parameters ------
 
 # Run
-n_simulation      <- 6 # see Table!
+n_simulation      <- 1 # see Table!
 
 n_obs             <- 10000
 n_rep             <- 2000
-Z_correlation     <- 0.2
-Z_subgroups       <- 4.0
-target_r_sq_X     <- 0.6  # binary X
+Z_correlation     <- 0.0
+Z_subgroups       <- 1.0
+target_r_sq_X     <- 0.2
 target_r_sq_Y     <- 0.4
-causal            <- 0.15 # binary Y
+causal            <- 0.0 # null simulation
 
-binary_X            <- TRUE
-binary_X_prevalance <- 0.30
-binary_Y            <- TRUE
-binary_Y_prevalence <- 0.05 # rare
-binary_Z            <- FALSE
+binary_X          <- FALSE
+binary_Y          <- FALSE
+binary_Z          <- FALSE
 
 # Scenario
 args = commandArgs(trailingOnly=TRUE)
@@ -86,46 +85,23 @@ set.seed(seed$seed)
 # ----- Helper Functions -----
 
 
-# Inverse-logit transform function
-# Used for simulating binary data
-inverse_logit <- function(real_values = NULL) {
-  probabilities <- (1)/(1 + exp(-1 * real_values))
-  return (probabilities)
-}
-
-
 # Round all numeric columns in a given data frame to a given number of digits
 # Credit to: https://stackoverflow.com/questions/9063889/how-to-round-a-data-frame-in-r-that-contains-some-character-variables
 round_df <- function(df, digits) {
   nums      <- vapply(df, is.numeric, FUN.VALUE = logical(1))
-  df[,nums] <- signif(df[,nums], digits = digits)
+  df[,nums] <- round(df[,nums], digits = digits)
   return (df)
-}
-
-
-# Map of "is.nan" for different object types
-# Credit to: https://stackoverflow.com/questions/18142117/how-to-replace-nan-value-with-zero-in-a-huge-data-frame
-is.nan.data.frame <- function(x) {
-  do.call(cbind, lapply(x, is.nan))
 }
 
 
 # Create a string corresponding to a regression of Y on a given set of covariates
 make_model_formula <- function(vars_selected = NULL) {
+  # first item does not require a '+' sign
+  formula_string <- paste("Y ~ ", vars_selected[1], sep = "")
   
-  if (length(vars_selected) > 0) {
-    # first item does not require a '+' sign
-    formula_string <- paste("Y ~ ", vars_selected[1], sep = "")
-    
-    for (var in vars_selected[-1]) {
-      formula_string <- paste(formula_string, " + ", var, sep = "")
-    }
+  for (var in vars_selected[-1]) {
+    formula_string <- paste(formula_string, " + ", var, sep = "")
   }
-  else {
-    # if no variables are selected, use constant term only
-    formula_string <- "Y ~ 0"
-  }
-  
   return(formula_string)
 }
 
@@ -137,19 +113,12 @@ make_X_model_formula <- function(vars_selected = NULL) {
     vars_selected <- vars_selected[! vars_selected%in% c('X')]
   }
   
-  if (length(vars_selected) > 0) {
-    # first item does not require a '+' sign
-    formula_string <- paste("X ~ ", vars_selected[1], sep = "")
-    
-    for (var in vars_selected[-1]) {
-      formula_string <- paste(formula_string, " + ", var, sep = "")
-    }
-  }
-  else {
-    # if no variables are selected, use constant term only
-    formula_string <- "X ~ 0"
-  }
+  # first item does not require a '+' sign
+  formula_string <- paste("X ~ ", vars_selected[1], sep = "")
   
+  for (var in vars_selected[-1]) {
+    formula_string <- paste(formula_string, " + ", var, sep = "")
+  }
   return(formula_string)
 }
 
@@ -165,34 +134,6 @@ beta_X_formula <- function(num_total_conf = NULL,
   value <- sqrt(numerator / denominator)
   
   return (value)
-}
-
-
-# The value for the beta coefficients used for generating X
-# 4 different values corresponding to the 4 subgroups
-beta_X_subgroups_formula <- function(beta_X = NULL) {
-  beta_X_1 <- beta_X     # HH
-  beta_X_2 <- beta_X     # HL
-  beta_X_3 <- beta_X / 4 # LH
-  beta_X_4 <- beta_X / 4 # LL
-  
-  beta_Xs <- c(beta_X_1, beta_X_2, beta_X_3, beta_X_4)
-  
-  return (beta_Xs)
-}
-
-
-# The value for the beta coefficients used for generating Y
-# 4 different values corresponding to the 4 subgroups
-beta_Y_subgroups_formula <- function(beta_X = NULL) {
-  beta_Y_1 <- beta_X     # HH
-  beta_Y_2 <- beta_X / 4 # HL
-  beta_Y_3 <- beta_X     # LH
-  beta_Y_4 <- beta_X / 4 # LL
-  
-  beta_Ys <- c(beta_Y_1, beta_Y_2, beta_Y_3, beta_Y_4)
-  
-  return (beta_Ys)
 }
 
 
@@ -239,88 +180,56 @@ r_squared_Y <- function(model     = NULL,
 }
 
 
-# Estimate the variance in Y before error
-# Idea is that we fix this for given values of R2 and b
-# We then get a compatible error term later on
-determine_subgroup_var_Y <- function(num_total_conf = NULL,
-                                     beta_X         = NULL,
-                                     causal         = NULL,
-                                     Z_correlation  = NULL,
-                                     target_r_sq_Y  = NULL) {
-  
-  subgroup_size <- num_total_conf / 4
-  beta_X_high   <- beta_X
-  beta_X_low    <- beta_X / 4
-  
-  A <- (causal * beta_X_low)  + beta_X_high
-  B <- (causal * beta_X_high) + beta_X_high
-  C <- (causal * beta_X_high) + beta_X_low
-  D <- (causal * beta_X_low)  + beta_X_low
-  
-  pairwise_combinations <- (A*B) + (A*C) + (A*D) + (B*C) + (B*D) + (C*D)
-  
-  LHS <- (A^2 + B^2 + C^2 + D^2) * (subgroup_size + (Z_correlation * subgroup_size * (subgroup_size - 1)))
-  MID <- 2 * Z_correlation * subgroup_size^2 * pairwise_combinations
-  RHS <- causal^2
-  
-  value <- LHS + MID + RHS
-  
-  return (value)
-}
-
-
 # Estimate the variance in the error term for Y
-# Takes a given variance of Y and inverts the R2 formula
-determine_subgroup_var_error_Y <- function(var_Y          = NULL,
-                                           target_r_sq_Y  = NULL) {
+# Guarantees our value of R2Y is respected for arbitrary value of causal effect
+determine_var_error_Y <- function(num_total_conf = NULL,
+                                  beta_X         = NULL,
+                                  causal         = NULL,
+                                  Z_correlation  = NULL,
+                                  target_r_sq_Y  = NULL) {
   
-  LHS   <- 1 - target_r_sq_Y
-  RHS   <- var_Y / target_r_sq_Y
-  value <- sqrt(LHS * RHS)
+  LHS   <- (1 - target_r_sq_Y)/target_r_sq_Y
+  S     <- (causal + 1)^2 * ((num_total_conf * beta_X^2) + (num_total_conf * (num_total_conf - 1) * Z_correlation * beta_X^2))
+  RHS   <- S + causal^2
+  value <- LHS * RHS
   
   return (value)
 }
 
 
 # Estimate covariance matrix of entire system
-# Structurally same as above but with formulae swapped out
-# Specifically this function gives the more-complicated "subgroups" formulae for variances
-determine_subgroup_cov_matrix <- function(num_total_conf = NULL,
-                                          var_names      = NULL,
-                                          beta_X         = NULL,
-                                          causal         = NULL,
-                                          Z_correlation  = NULL,
-                                          target_r_sq_X  = NULL,
-                                          target_r_sq_Y  = NULL) {
+# Allows us to check in-one-go whether covariates are being generated properly
+determine_cov_matrix <- function(num_total_conf = NULL,
+                                 var_names      = NULL,
+                                 beta_X         = NULL,
+                                 beta_Y         = NULL,
+                                 causal         = NULL,
+                                 Z_correlation  = NULL,
+                                 target_r_sq_X  = NULL,
+                                 target_r_sq_Y  = NULL) {
   
   num_vars         <- length(var_names)
   num_of_cov_terms <- ((num_total_conf) * (num_total_conf - 1))
-  subgroup_size    <- num_total_conf / 4
+  new_coef         <- ((causal*beta_X) + beta_Y)^2
   
   analytic_cov           <- matrix(NaN, num_vars, num_vars)
   rownames(analytic_cov) <- var_names
   colnames(analytic_cov) <- var_names
   
-  var_Y <- determine_subgroup_var_Y(num_total_conf = num_total_conf,
-                                    beta_X         = beta_X,
-                                    causal         = causal,
-                                    Z_correlation  = Z_correlation,
-                                    target_r_sq_Y  = target_r_sq_Y)
-  
-  var_error_Y <- determine_subgroup_var_error_Y(var_Y          = var_Y,
-                                                target_r_sq_Y  = target_r_sq_Y)
-  
-  real_var_Y <- var_Y + var_error_Y
+  var_error_Y <- determine_var_error_Y(num_total_conf = num_total_conf,
+                                       beta_X         = beta_X,
+                                       causal         = causal,
+                                       Z_correlation  = Z_correlation,
+                                       target_r_sq_Y  = target_r_sq_Y)
   
   # variances
-  # NB: i indexes over {1, ..., m, m+1, m+2} for variables {Y, X, Z1, ..., Zm}
   for (i in 1:num_vars) {
     # variances here
     if (var_names[i] == 'X') {
-      analytic_cov[i, i] <- ((num_total_conf / 2) * (beta_X^2 / 16)) + ((num_total_conf / 2) * beta_X^2) + 1
+      analytic_cov[i, i] <- (num_total_conf * beta_X^2) + 1 + (num_of_cov_terms * beta_X^2 * Z_correlation)
     }
     else if (var_names[i] == 'Y') {
-      analytic_cov[i, i] <- real_var_Y
+      analytic_cov[i, i] <- (num_total_conf * new_coef) + (causal^2) + var_error_Y + (num_of_cov_terms * new_coef * Z_correlation)
     }
     else {
       analytic_cov[i, i] <- (sqrt(Z_correlation))^2 + (sqrt(1 - Z_correlation))^2
@@ -385,24 +294,17 @@ fill_in_blanks <- function(coefs = NULL, labels = NULL) {
 # coefficient values for DAG
 alpha <- sqrt(Z_correlation)     # U on Z
 beta  <- sqrt(1 - Z_correlation) # error_Z on Z
-
 beta_X  <- beta_X_formula(num_total_conf = num_total_conf, # Z on X
                           target_r_sq_X  = target_r_sq_X,
                           Z_correlation  = Z_correlation)
-
-beta_Xs <- beta_X_subgroups_formula(beta_X = beta_X)
-beta_Ys <- beta_Y_subgroups_formula(beta_X = beta_X)
+beta_Y  <- beta_X # Z on Y
 
 # variance of the error term for Y
-var_Y <- determine_subgroup_var_Y(num_total_conf = num_total_conf,
-                                  beta_X         = beta_X,
-                                  causal         = causal,
-                                  Z_correlation  = Z_correlation,
-                                  target_r_sq_Y  = target_r_sq_Y)
-
-var_error_Y <- determine_subgroup_var_error_Y(var_Y          = var_Y,
-                                              target_r_sq_Y  = target_r_sq_Y)
-
+var_error_Y <- determine_var_error_Y(num_total_conf = num_total_conf,
+                                     beta_X         = beta_X,
+                                     causal         = causal,
+                                     Z_correlation  = Z_correlation,
+                                     target_r_sq_Y  = target_r_sq_Y)
 
 # datasets representative of our DAG
 generate_dataset <- function() {
@@ -419,120 +321,39 @@ generate_dataset <- function() {
   Y <- rep(0, length.out = n_obs)
   
   # add effect of confounders Z_i to X and Y in batches of 4
-  if (!binary_Z) {
-    for (i in 1:num_of_batches) {
-      # error terms
-      error_Z1 <- rnorm(n = n_obs, mean = 0, sd = 1)
-      error_Z2 <- rnorm(n = n_obs, mean = 0, sd = 1)
-      error_Z3 <- rnorm(n = n_obs, mean = 0, sd = 1)
-      error_Z4 <- rnorm(n = n_obs, mean = 0, sd = 1)
-      
-      # confounders Z
-      Z1 <- (alpha * prior_U) + (beta * error_Z1) # always X=L, Y=L
-      Z2 <- (alpha * prior_U) + (beta * error_Z2) # always X=L, Y=H
-      Z3 <- (alpha * prior_U) + (beta * error_Z3) # always X=H, Y=L
-      Z4 <- (alpha * prior_U) + (beta * error_Z4) # always X=H, Y=H
-      
-      # add confounder effect on treatment variable X and outcome variable Y
-      X  <- X + (beta_Xs[1] * Z1) + (beta_Xs[2] * Z2) + (beta_Xs[3] * Z3) + (beta_Xs[4] * Z4)
-      Y  <- Y + (beta_Ys[1] * Z1) + (beta_Ys[2] * Z2) + (beta_Ys[3] * Z3) + (beta_Ys[4] * Z4)
-      
-      # record Zs
-      # index formula places Zs such that all Zs of one sub-group are next to each other
-      dataset[, (2 + (0 * num_of_batches) + i)] <- Z1
-      dataset[, (2 + (1 * num_of_batches) + i)] <- Z2
-      dataset[, (2 + (2 * num_of_batches) + i)] <- Z3
-      dataset[, (2 + (3 * num_of_batches) + i)] <- Z4
-    }
-  }
-  else {
-    if (Z_correlation == 0.0) {
-      # uncorrelated binary case
-      for (i in 1:num_of_batches) {
-        # independent error terms
-        uniform_prior_U_Z1 <- runif(n = n_obs, min = 0, max = 1)
-        uniform_prior_U_Z2 <- runif(n = n_obs, min = 0, max = 1)
-        uniform_prior_U_Z3 <- runif(n = n_obs, min = 0, max = 1)
-        uniform_prior_U_Z4 <- runif(n = n_obs, min = 0, max = 1)
-        
-        # confounders Z
-        Z1 <- 2.06 * rbinom(n = n_obs, size = 1, prob = inverse_logit(uniform_prior_U_Z1)) - 0.94
-        Z2 <- 2.06 * rbinom(n = n_obs, size = 1, prob = inverse_logit(uniform_prior_U_Z2)) - 0.94
-        Z3 <- 2.06 * rbinom(n = n_obs, size = 1, prob = inverse_logit(uniform_prior_U_Z3)) - 0.94
-        Z4 <- 2.06 * rbinom(n = n_obs, size = 1, prob = inverse_logit(uniform_prior_U_Z4)) - 0.94
-        
-        # add confounder effect on treatment variable X and outcome variable Y
-        X  <- X + (beta_Xs[1] * Z1) + (beta_Xs[2] * Z2) + (beta_Xs[3] * Z3) + (beta_Xs[4] * Z4)
-        Y  <- Y + (beta_Ys[1] * Z1) + (beta_Ys[2] * Z2) + (beta_Ys[3] * Z3) + (beta_Ys[4] * Z4)
-        
-        # record Zs
-        # index formula places Zs such that all Zs of one sub-group are next to each other
-        dataset[, (2 + (0 * num_of_batches) + i)] <- Z1
-        dataset[, (2 + (1 * num_of_batches) + i)] <- Z2
-        dataset[, (2 + (2 * num_of_batches) + i)] <- Z3
-        dataset[, (2 + (3 * num_of_batches) + i)] <- Z4
-      }
-    }
-    else {
-      # correlated binary case
-      uniform_prior_U <- runif(n = n_obs, min = 0, max = 1)
-      
-      for (i in 1:num_of_batches) {
-        # confounders Z
-        Z1 <- 2.06 * rbinom(n = n_obs, size = 1, prob = inverse_logit(uniform_prior_U)) - 0.94
-        Z2 <- 2.06 * rbinom(n = n_obs, size = 1, prob = inverse_logit(uniform_prior_U)) - 0.94
-        Z3 <- 2.06 * rbinom(n = n_obs, size = 1, prob = inverse_logit(uniform_prior_U)) - 0.94
-        Z4 <- 2.06 * rbinom(n = n_obs, size = 1, prob = inverse_logit(uniform_prior_U)) - 0.94
-        
-        # add confounder effect on treatment variable X and outcome variable Y
-        X  <- X + (beta_Xs[1] * Z1) + (beta_Xs[2] * Z2) + (beta_Xs[3] * Z3) + (beta_Xs[4] * Z4)
-        Y  <- Y + (beta_Ys[1] * Z1) + (beta_Ys[2] * Z2) + (beta_Ys[3] * Z3) + (beta_Ys[4] * Z4)
-        
-        # record Zs
-        # index formula places Zs such that all Zs of one sub-group are next to each other
-        dataset[, (2 + (0 * num_of_batches) + i)] <- Z1
-        dataset[, (2 + (1 * num_of_batches) + i)] <- Z2
-        dataset[, (2 + (2 * num_of_batches) + i)] <- Z3
-        dataset[, (2 + (3 * num_of_batches) + i)] <- Z4
-      }
-    }
+  for (i in 1:num_of_batches) {
+    # error terms
+    error_Z1 <- rnorm(n = n_obs, mean = 0, sd = 1)
+    error_Z2 <- rnorm(n = n_obs, mean = 0, sd = 1)
+    error_Z3 <- rnorm(n = n_obs, mean = 0, sd = 1)
+    error_Z4 <- rnorm(n = n_obs, mean = 0, sd = 1)
+    
+    # confounders Z
+    Z1 <- (alpha * prior_U) + (beta * error_Z1) # always X=L, Y=L
+    Z2 <- (alpha * prior_U) + (beta * error_Z2) # always X=L, Y=H
+    Z3 <- (alpha * prior_U) + (beta * error_Z3) # always X=H, Y=L
+    Z4 <- (alpha * prior_U) + (beta * error_Z4) # always X=H, Y=H
+    
+    # add confounder effect on treatment variable X and outcome variable Y
+    X  <- X + (beta_X * Z1) + (beta_X * Z2) + (beta_X * Z3) + (beta_X * Z4)
+    Y  <- Y + (beta_Y * Z1) + (beta_Y * Z2) + (beta_Y * Z3) + (beta_Y * Z4)
+    
+    # record Zs
+    # index formula places Zs such that all Zs of one sub-group are next to each other
+    dataset[, (2 + (0 * num_of_batches) + i)] <- Z1
+    dataset[, (2 + (1 * num_of_batches) + i)] <- Z2
+    dataset[, (2 + (2 * num_of_batches) + i)] <- Z3
+    dataset[, (2 + (3 * num_of_batches) + i)] <- Z4
   }
   
-  # add error term to X if not binary
-  if (!binary_X) {
-    error_X <- rnorm(n = n_obs, mean = 0, sd = 1)
-    X <- X + error_X
-  }
-  
-  # add error term to Y if not binary
-  if (!binary_Y) {
-    error_Y <- rnorm(n = n_obs, mean = 0, sd = sqrt(var_error_Y))
-    Y <- Y + error_Y
-  }
-  
-  # binarize X if binary
-  # NB: R2X = 0.6 here for binary
-  if (binary_X) {
-    # NB: intercept term of logit expression controls prevalence (mean) of binary var
-    logit_prob_X  <- X - 1.40                                   # interpret existing values as logit(probability)
-    prob_X        <- inverse_logit(logit_prob_X)                # apply inverse to obtain prob values
-    binary_vals_X <- rbinom(n = n_obs, size = 1, prob = prob_X) # re-sample to obtain X
-    X             <- binary_vals_X                              # write binary values over previous continuous values
-  }
+  # add error terms to X and Y
+  error_X <- rnorm(n = n_obs, mean = 0, sd = 1)
+  error_Y <- rnorm(n = n_obs, mean = 0, sd = sqrt(var_error_Y))
+  X <- X + error_X
+  Y <- Y + error_Y
   
   # add causal effect (X on Y)
-  # NB: causal = 0.15 for binary
-  Y <- Y + (causal * X) 
-  
-  # binarize Y if binary
-  if (binary_Y) {
-    # NB: intercept term of logit expression controls prevalence (mean) of binary var
-    # common Y: intercept = 1.45; rare Y: intercept = 3.71
-    logit_prob_Y  <- Y - 3.71                                    # interpret existing values as logit(probability)
-    prob_Y        <- inverse_logit(logit_prob_Y)                # apply inverse to obtain prob values
-    binary_vals_Y <- rbinom(n = n_obs, size = 1, prob = prob_Y) # re-sample to obtain Y
-    Y             <- binary_vals_Y                              # write binary values over previous continuous values
-  }
+  Y <- Y + (causal * X)
   
   # record X and Y
   dataset[, 'Y'] <- Y
@@ -617,181 +438,89 @@ for (repetition in 1:n_rep) {
     X_model <- NULL # required to make R2X well-defined
     
     if (method == "linear") {
-      if (binary_Y) {
-        model <- glm("Y ~ .", data = dataset, family = "binomial")
-      }
-      else {
-        model <- lm("Y ~ .",  data = dataset)
-      }
-      if (binary_X) {
-        X_model <- glm("X ~ .", data = X_dataset, family = "binomial")
-      }
-      else {
-        X_model <- lm("X ~ .",  data = X_dataset)
-      }
+      model   <- lm("Y ~ .", data = dataset)
+      X_model <- lm("X ~ .", data = X_dataset)
       
       vars_selected <- names(model$coefficients)
       vars_selected <- vars_selected[vars_selected != "(Intercept)"]
     }
     
     else if (method == "linear_unadjusted") {
-      if (binary_Y) {
-        model <- glm("Y ~ X", data = dataset, family = "binomial")
-      }
-      else {
-        model <- lm("Y ~ X", data = dataset)
-      }
-      if (binary_X) {
-        X_model <- glm("X ~ 0", data = X_dataset, family = "binomial")
-      }
-      else {
-        X_model <- lm("X ~ 0", data = X_dataset)
-      }
+      model   <- lm("Y ~ X", data = dataset)
+      X_model <- lm("X ~ 0", data = X_dataset)
       
       vars_selected <- names(model$coefficients)
       vars_selected <- vars_selected[vars_selected != "(Intercept)"]
     }
     
     else if (method == "stepwise") {
-      if (binary_Y) {
-        stepwise_model <- step(object    = glm("Y ~ .", data = dataset, family = "binomial"), # all variable base
-                               direction = "both",                                            # stepwise, not fwd or bwd
-                               scope     = list(upper = "Y ~ .", lower = "Y ~ X"),            # exposure X always included
-                               trace     = 0)                                                 # suppress output
-      }
-      else {
-        stepwise_model <- step(object    = lm("Y ~ .", data = dataset),            # all variable base
-                               direction = "both",                                 # stepwise, not fwd or bwd
-                               scope     = list(upper = "Y ~ .", lower = "Y ~ X"), # exposure X always included
-                               trace     = 0)
-      }
+      stepwise_model      <- step(object    = lm("Y ~ .", data = dataset),            # all variable base
+                                  direction = "both",                                 # stepwise, not fwd or bwd
+                                  scope     = list(upper = "Y ~ .", lower = "Y ~ X"), # exposure X always included
+                                  trace     = 0)                                      # suppress output
       
       vars_selected <- names(stepwise_model$coefficients)
-      vars_selected <- union(c('X'), vars_selected) # always select X
       vars_selected <- vars_selected[vars_selected != "(Intercept)"]
       
       model_formula   <- make_model_formula(vars_selected = vars_selected)
       X_model_formula <- make_X_model_formula(vars_selected = vars_selected)
       
-      if (binary_Y) {
-        model <- glm(model_formula, data = dataset, family = "binomial")
-      }
-      else {
-        model <- lm(model_formula,  data = dataset)
-      }
-      if (binary_X) {
-        X_model <- glm(X_model_formula, data = X_dataset, family = "binomial")
-      }
-      else {
-        X_model <- lm(X_model_formula,  data = X_dataset)
-      }
+      model   <- lm(model_formula,   data = dataset)
+      X_model <- lm(X_model_formula, data = X_dataset)
     }
     
     else if (method == "stepwise_X") {
-      if (binary_X) {
-        stepwise_X_model <- step(object    = glm("X ~ .", data = X_dataset, family = "binomial"), # all variable base
-                                 direction = "both",                                              # stepwise, not fwd or bwd
-                                 scope     = list(upper = "X ~ .", lower = "X ~ 0"),              # constant term
-                                 trace     = 0)                                                   # suppress output
-      }
-      else {
-        stepwise_X_model <- step(object    = lm("X ~ .", data = X_dataset),          # all variable base
+      stepwise_X_model   <- step(object    = lm("X ~ .", data = X_dataset),          # all variable base
                                  direction = "both",                                 # stepwise, not fwd or bwd
                                  scope     = list(upper = "X ~ .", lower = "X ~ 0"), # constant term
                                  trace     = 0)
-      }
       
       vars_selected <- names(stepwise_X_model$coefficients)
-      vars_selected <- union(c('X'), vars_selected) # always select X
+      vars_selected <- c('X', vars_selected)
       vars_selected <- vars_selected[vars_selected != "(Intercept)"]
       
       model_formula   <- make_model_formula(vars_selected = vars_selected)
       X_model_formula <- make_X_model_formula(vars_selected = vars_selected)
       
-      if (binary_Y) {
-        model <- glm(model_formula, data = dataset, family = "binomial")
-      }
-      else {
-        model <- lm(model_formula,  data = dataset)
-      }
-      if (binary_X) {
-        X_model <- glm(X_model_formula, data = X_dataset, family = "binomial")
-      }
-      else {
-        X_model <- lm(X_model_formula,  data = X_dataset)
-      }
+      model   <- lm(model_formula,   data = dataset)
+      X_model <- lm(X_model_formula, data = X_dataset)
     }
     
     else if (method == "two_step_lasso") {
-      if (binary_Y) {
-        cv_lasso_model <- cv.glmnet(x = data.matrix(X_dataset), y = data.matrix(Y_column), family = 'binomial', alpha=1)
-        lambda         <- cv_lasso_model$lambda.min
-        lasso_model    <- glmnet(x = data.matrix(X_dataset), y = data.matrix(Y_column), family = 'binomial', alpha=1, lambda=lambda)
-      }
-      else {
-        cv_lasso_model <- cv.glmnet(x = data.matrix(X_dataset), y = data.matrix(Y_column), alpha=1)
-        lambda         <- cv_lasso_model$lambda.min
-        lasso_model    <- glmnet(x = data.matrix(X_dataset), y = data.matrix(Y_column), alpha=1, lambda=lambda)
-      }
+      cv_lasso_model <- cv.glmnet(x = data.matrix(X_dataset), y = data.matrix(Y_column), alpha=1)
+      lambda         <- cv_lasso_model$lambda.min
+      lasso_model    <- glmnet(x = data.matrix(X_dataset), y = data.matrix(Y_column), alpha=1, lambda=lambda)
       
       lasso_coefs        <- as.vector(lasso_model$beta)
       names(lasso_coefs) <- rownames(lasso_model$beta)
       
       vars_selected <- names(lasso_coefs[lasso_coefs != 0.0])
-      vars_selected <- union(c('X'), vars_selected) # always select X
       vars_selected <- vars_selected[vars_selected != "(Intercept)"]
       
       model_formula   <- make_model_formula(vars_selected = vars_selected)
       X_model_formula <- make_X_model_formula(vars_selected = vars_selected)
       
-      if (binary_Y) {
-        model <- glm(model_formula, data = dataset, family = "binomial")
-      }
-      else {
-        model <- lm(model_formula,  data = dataset)
-      }
-      if (binary_X) {
-        X_model <- glm(X_model_formula, data = X_dataset, family = "binomial")
-      }
-      else {
-        X_model <- lm(X_model_formula,  data = X_dataset)
-      }
+      model   <- lm(model_formula,   data = dataset)
+      X_model <- lm(X_model_formula, data = X_dataset)
     }
     
     else if (method == "two_step_lasso_X") {
-      if (binary_X) {
-        cv_lasso_X_model <- cv.glmnet(x = data.matrix(Z_dataset), y = data.matrix(X_column), family = 'binomial', alpha=1)
-        lambda           <- cv_lasso_X_model$lambda.min
-        lasso_model      <- glmnet(x = data.matrix(Z_dataset), y = data.matrix(X_column), family = 'binomial', alpha=1, lambda=lambda)
-      }
-      else {
-        cv_lasso_X_model <- cv.glmnet(x = data.matrix(Z_dataset), y = data.matrix(X_column), alpha=1)
-        lambda           <- cv_lasso_X_model$lambda.min
-        lasso_model      <- glmnet(x = data.matrix(Z_dataset), y = data.matrix(X_column), alpha=1, lambda=lambda)
-      }
+      cv_lasso_X_model <- cv.glmnet(x = data.matrix(Z_dataset), y = data.matrix(X_column), alpha=1)
+      lambda           <- cv_lasso_X_model$lambda.min
+      lasso_model      <- glmnet(x = data.matrix(Z_dataset), y = data.matrix(X_column), alpha=1, lambda=lambda)
       
       lasso_coefs        <- as.vector(lasso_model$beta)
       names(lasso_coefs) <- rownames(lasso_model$beta)
       
       vars_selected <- names(lasso_coefs[lasso_coefs != 0.0])
-      vars_selected <- union(c('X'), vars_selected) # always select X
+      vars_selected <- c('X', vars_selected)
       vars_selected <- vars_selected[vars_selected != "(Intercept)"]
       
       model_formula   <- make_model_formula(vars_selected = vars_selected)
       X_model_formula <- make_X_model_formula(vars_selected = vars_selected)
       
-      if (binary_Y) {
-        model <- glm(model_formula, data = dataset, family = "binomial")
-      }
-      else {
-        model <- lm(model_formula,  data = dataset)
-      }
-      if (binary_X) {
-        X_model <- glm(X_model_formula, data = X_dataset, family = "binomial")
-      }
-      else {
-        X_model <- lm(X_model_formula,  data = X_dataset)
-      }
+      model   <- lm(model_formula,   data = dataset)
+      X_model <- lm(X_model_formula, data = X_dataset)
     }
     
     else if (method == "two_step_lasso_union") {
@@ -872,8 +601,8 @@ for (repetition in 1:n_rep) {
     results[ method, "model_SE", repetition] <- (coef(summary(model))[, "Std. Error"])['X']
     results[ method, "emp_SE", repetition]   <- NaN # filled-in after
     
-    results[ method, "r_squared_X", repetition] <- ifelse( binary_X, NaN, r_squared_X(X_model = X_model, X_test_data = X_dataset) )
-    results[ method, "r_squared_Y", repetition] <- ifelse( binary_Y, NaN, r_squared_Y(model = model, test_data = dataset) )
+    results[ method, "r_squared_X", repetition] <- r_squared_X(X_model = X_model, X_test_data = X_dataset)
+    results[ method, "r_squared_Y", repetition] <- r_squared_Y(model = model, test_data = dataset)
     
     results[ method, "causal_true_value", repetition] <- causal
     results[ method, "causal_estimate", repetition]   <- current_coefs['X']
@@ -898,37 +627,34 @@ final_results <- as.data.frame(apply(results, c(1,2), mean))
 
 # fill-in other results
 for (method in model_methods) {
-  causal_effect_estimates               <- c(results[method, "causal_estimate", ])
+  causal_effect_estimates            <- c(results[method, "causal_estimate", ])
+  
   final_results[ method, "emp_SE"]      <- sd(causal_effect_estimates)
   final_results[ method, "causal_bias"] <- mean(causal_effect_estimates - causal)
 }
 
 # Round to 3 digits
-final_results <- round_df(final_results, digits=3)
+final_results <- round_df(final_results, digits=4)
 
-# Process coefficients (NB: we omit NaNs here for interpretability)
-final_model_coefs <- as.data.frame(apply(model_coefs, c(1,2), function(x) mean(na.omit(x))))
-final_model_coefs <- round_df(final_model_coefs, digits=3)
+# Process coefficients
+final_model_coefs <- as.data.frame(apply(model_coefs, c(1,2), mean))
+final_model_coefs <- round_df(final_model_coefs, digits=4)
 
 # Process cov selection
 final_cov_selection <- as.data.frame(apply(cov_selection, c(1,2), mean))
-final_cov_selection <- round_df(final_cov_selection, digits=3)
+final_cov_selection <- round_df(final_cov_selection, digits=4)
 
 
 
 # ----- Present and save results -----
 
 # Coefficients fitted and error-variance fitted
+coefs <- c(beta_X, beta_Y, causal)
+names(coefs) <- c("beta_X", "beta_Y", "causal")
+
 message("\n\nTrue Coefficients of DAG and Variance of error of Y")
-print("Coefficients of Z on X:")
-print(beta_Xs)
-print("Coefficients of Z on Y:")
-print(beta_Ys)
-print("Coefficient of X on Y:")
-print(causal)
-print(var_Y)
+print(coefs)
 print(var_error_Y)
-print(var_Y + var_error_Y)
 
 message("\n\nObserved Coefficients")
 print(final_model_coefs)
@@ -937,15 +663,16 @@ message("\n\nObserved Covariate Selection")
 print(final_cov_selection)
 
 # Covariance Matrices
-analytic_cov_matrix <- determine_subgroup_cov_matrix(num_total_conf = num_total_conf,
-                                                     var_names      = var_names,
-                                                     beta_X         = beta_X,
-                                                     causal         = causal,
-                                                     Z_correlation  = Z_correlation,
-                                                     target_r_sq_X  = target_r_sq_X,
-                                                     target_r_sq_Y  = target_r_sq_Y)
+analytic_cov_matrix <- determine_cov_matrix(num_total_conf = num_total_conf,
+                                            var_names      = var_names,
+                                            beta_X         = beta_X,
+                                            beta_Y         = beta_Y,
+                                            causal         = causal,
+                                            Z_correlation  = Z_correlation,
+                                            target_r_sq_X  = target_r_sq_X,
+                                            target_r_sq_Y  = target_r_sq_Y)
 
-message("\n\nNon-subgroup non-binary Analytic Covariance:")
+message("\n\nNon-subgroup Analytic Covariance:")
 print(analytic_cov_matrix)
 
 observed_cov_matrix <- round_df(as.data.frame(cov(dataset)), digits=3)
@@ -955,7 +682,7 @@ print(observed_cov_matrix)
 message("\n\nError Results:")
 print(final_results[, c(1:3)])
 
-message("\n\nObserved (Continuous) R2 Values:")
+message("\n\nObserved R2 Values:")
 print(final_results[, c(4:5)])
 
 message("\n\nCausal Effect Estimation:")

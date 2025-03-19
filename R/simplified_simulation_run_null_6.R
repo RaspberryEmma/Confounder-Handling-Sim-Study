@@ -2,6 +2,7 @@
 # Confounder Handling Simulation Study
 #
 # Simplified, less flexible refactor of all existing sim code
+# Null simulation (causal effect = 0.0)
 #
 # Emma Tarmey
 #
@@ -47,7 +48,7 @@ Z_correlation     <- 0.2
 Z_subgroups       <- 4.0
 target_r_sq_X     <- 0.6  # binary X
 target_r_sq_Y     <- 0.4
-causal            <- 0.15 # binary Y
+causal            <- 0.0  # null simulation
 
 binary_X            <- TRUE
 binary_X_prevalance <- 0.30
