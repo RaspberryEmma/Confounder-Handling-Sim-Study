@@ -2,7 +2,6 @@
 # Confounder Handling Simulation Study
 #
 # Simplified, less flexible refactor of all existing sim code
-# Null simulation (causal effect = 0.0)
 #
 # Emma Tarmey
 #
@@ -42,13 +41,13 @@ if (Sys.getenv("RSTUDIO") == "1") {
 # Run
 n_simulation      <- 5 # see Table!
 
-n_obs             <- 10000
-n_rep             <- 2000
+n_obs             <- 50 # 10000
+n_rep             <- 10  # 2000
 Z_correlation     <- 0.2
 Z_subgroups       <- 4.0
 target_r_sq_X     <- 0.6 # binary X
 target_r_sq_Y     <- 0.4
-causal            <- 0.0 # null simulation
+causal            <- 0.5
 
 binary_X            <- TRUE
 binary_X_prevalence <- 0.30

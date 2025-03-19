@@ -13,7 +13,7 @@
 # ****************************************
 #
 #SBATCH --partition=compute
-#SBATCH --job-name=scenario_5_cs_5_6_7_8
+#SBATCH --job-name=scenario_5
 #SBATCH --nodes=1
 #SBATCH --ntasks-per-node=1
 #SBATCH --cpus-per-task=16
@@ -45,10 +45,10 @@ module load languages/R/4.4.1
 # Execute code
 # NB: we pass in the following:
 # (#scenario) (#total confounders) (#measured) (#unmeasured)
-# Rscript simplified_simulation_run_5.R 1  16  16  0
-# Rscript simplified_simulation_run_5.R 2  16  12  4
-# Rscript simplified_simulation_run_5.R 3  32  32  0
-# Rscript simplified_simulation_run_5.R 4  32  24  8
+Rscript simplified_simulation_run_5.R 1  16  16  0
+Rscript simplified_simulation_run_5.R 2  16  12  4
+Rscript simplified_simulation_run_5.R 3  32  32  0
+Rscript simplified_simulation_run_5.R 4  32  24  8
 Rscript simplified_simulation_run_5.R 5  64  64  0
 Rscript simplified_simulation_run_5.R 6  64  48 16
 Rscript simplified_simulation_run_5.R 7 128 128  0

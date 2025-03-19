@@ -533,20 +533,6 @@ generate_dataset <- function() {
     Y             <- binary_vals_Y                              # write binary values over previous continuous values
   }
   
-  # add causal effect (X on Y)
-  # NB: causal = 0.15 for binary
-  Y <- Y + (causal * X) 
-  
-  # binarize Y if binary
-  if (binary_Y) {
-    # NB: intercept term of logit expression controls prevalence (mean) of binary var
-    # common Y: intercept = 1.1; rare Y: intercept = 3.1
-    logit_prob_Y  <- Y - 1.1                                    # interpret existing values as logit(probability)
-    prob_Y        <- inverse_logit(logit_prob_Y)                # apply inverse to obtain prob values
-    binary_vals_Y <- rbinom(n = n_obs, size = 1, prob = prob_Y) # re-sample to obtain Y
-    Y             <- binary_vals_Y                              # write binary values over previous continuous values
-  }
-  
   # record X and Y
   dataset[, 'Y'] <- Y
   dataset[, 'X'] <- X
