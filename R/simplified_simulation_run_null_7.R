@@ -7,7 +7,7 @@
 # Emma Tarmey
 #
 # Started:          06/02/2025
-# Most Recent Edit: 19/03/2025
+# Most Recent Edit: 27/03/2025
 # ****************************************
 
 
@@ -81,6 +81,15 @@ seed     <- seeds_df %>%
   filter(simulation_run      == n_simulation) %>%
   filter(simulation_scenario == n_scenario)
 set.seed(seed$seed)
+
+
+
+# ----- Mark simulation as Null -----
+
+# NB: doing this ensures that program produces seperate results files, (1 =/= null_1)
+# additionally, logs are clearer
+n_simulation <- paste0("null_", n_simulation)
+n_scenario   <- paste0("null_", n_scenario)
 
 
 
