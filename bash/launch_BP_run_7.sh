@@ -9,7 +9,7 @@
 # Emma Tarmey
 #
 # Started:          11/02/2025
-# Most Recent Edit: 19/03/2025
+# Most Recent Edit: 01/04/2025
 # ****************************************
 #
 #SBATCH --partition=compute
@@ -17,7 +17,7 @@
 #SBATCH --nodes=1
 #SBATCH --ntasks-per-node=1
 #SBATCH --cpus-per-task=16
-#SBATCH --time=4-00:00:00
+#SBATCH --time=8-00:00:00
 #SBATCH --mem-per-cpu=4G
 #SBATCH --account=MATH033344
 #SBATCH --mail-type=ALL

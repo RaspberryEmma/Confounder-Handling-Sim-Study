@@ -6,7 +6,7 @@
 # Emma Tarmey
 #
 # Started:          06/02/2025
-# Most Recent Edit: 19/03/2025
+# Most Recent Edit: 01/04/2025
 # ****************************************
 
 
@@ -414,13 +414,29 @@ cov_selection <- array(data     = NaN,
                        dimnames = list(model_methods, var_names_except_Y, 1:n_rep) )
 
 
+# track progress through simulation
+previous_time <- as.numeric(Sys.time())*1000
+current_time  <- as.numeric(Sys.time())*1000
+delta_time    <- current_time - previous_time
+remaining_rep <- n_rep + 1
+
 # run simulation repetitions
 for (repetition in 1:n_rep) {
+  
+  remaining_rep   <- remaining_rep - 1
+  previous_time   <- current_time
+  current_time    <- as.numeric(Sys.time())*1000
+  delta_time      <- current_time - previous_time
+  remaining_time  <- remaining_rep * delta_time
+  expected_finish <- signif(((current_time + remaining_time)/1000), digits = 13) %>% as.POSIXct()
   
   # track progress
   message( paste("\n\nRunning Simulation Run ", n_simulation,
                  ", Scenario ", n_scenario,
-                 ", Iteration ", repetition, "/", n_rep, "\n", sep = "") )
+                 ", Iteration ", repetition, "/", n_rep,
+                 "\nLast iteration computed in ", signif(delta_time/1000, 4), " seconds",
+                 "\nExpected finish time ", expected_finish, " for current confounder set",
+                 "\n", sep = "") )
   
   # generate data
   dataset   <- generate_dataset()
