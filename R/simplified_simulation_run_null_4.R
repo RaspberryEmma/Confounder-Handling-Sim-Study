@@ -533,19 +533,15 @@ for (repetition in 1:n_rep) {
     X_model <- NULL # required to make R2X well-defined
     
     if (method == "linear") {
-      model   <- lm("Y ~ .", data = dataset)
-      X_model <- lm("X ~ .", data = X_dataset)
-      
-      vars_selected <- names(model$coefficients)
-      vars_selected <- vars_selected[vars_selected != "(Intercept)"]
+      vars_selected   <- colnames(X_dataset) # all
+      model_formula   <- make_model_formula(vars_selected = vars_selected)
+      X_model_formula <- make_X_model_formula(vars_selected = vars_selected)
     }
     
     else if (method == "linear_unadjusted") {
-      model   <- lm("Y ~ X", data = dataset)
-      X_model <- lm("X ~ 0", data = X_dataset)
-      
-      vars_selected <- names(model$coefficients)
-      vars_selected <- vars_selected[vars_selected != "(Intercept)"]
+      vars_selected   <- c("X") # none except X
+      model_formula   <- "Y ~ X"
+      X_model_formula <- "X ~ 0"
     }
     
     else if (method == "stepwise") {
@@ -559,9 +555,6 @@ for (repetition in 1:n_rep) {
       
       model_formula   <- make_model_formula(vars_selected = vars_selected)
       X_model_formula <- make_X_model_formula(vars_selected = vars_selected)
-      
-      model   <- lm(model_formula,   data = dataset)
-      X_model <- lm(X_model_formula, data = X_dataset)
     }
     
     else if (method == "stepwise_X") {
@@ -576,9 +569,6 @@ for (repetition in 1:n_rep) {
       
       model_formula   <- make_model_formula(vars_selected = vars_selected)
       X_model_formula <- make_X_model_formula(vars_selected = vars_selected)
-      
-      model   <- lm(model_formula,   data = dataset)
-      X_model <- lm(X_model_formula, data = X_dataset)
     }
     
     else if (method == "two_step_lasso") {
@@ -594,13 +584,6 @@ for (repetition in 1:n_rep) {
       
       model_formula   <- make_model_formula(vars_selected = vars_selected)
       X_model_formula <- make_X_model_formula(vars_selected = vars_selected)
-      
-      #print(lasso_model$beta)
-      #print(lasso_coefs)
-      #print(vars_selected)
-      
-      model   <- lm(model_formula,   data = dataset)
-      X_model <- lm(X_model_formula, data = X_dataset)
     }
     
     else if (method == "two_step_lasso_X") {
@@ -617,70 +600,27 @@ for (repetition in 1:n_rep) {
       
       model_formula   <- make_model_formula(vars_selected = vars_selected)
       X_model_formula <- make_X_model_formula(vars_selected = vars_selected)
-      
-      model   <- lm(model_formula,   data = dataset)
-      X_model <- lm(X_model_formula, data = X_dataset)
     }
     
     else if (method == "two_step_lasso_union") {
-      # X model
-      if (binary_X) {
-        cv_lasso_X_model <- cv.glmnet(x = data.matrix(Z_dataset), y = data.matrix(X_column), family = 'binomial', alpha=1)
-        lambda_X         <- cv_lasso_X_model$lambda.min
-        lasso_X_model    <- glmnet(x = data.matrix(Z_dataset), y = data.matrix(X_column), family = 'binomial', alpha=1, lambda=lambda_X)
-      }
-      else {
-        cv_lasso_X_model <- cv.glmnet(x = data.matrix(Z_dataset), y = data.matrix(X_column), alpha=1)
-        lambda_X         <- cv_lasso_X_model$lambda.min
-        lasso_X_model    <- glmnet(x = data.matrix(Z_dataset), y = data.matrix(X_column), alpha=1, lambda=lambda_X)
-      }
+      # extract covariate selections from prev models (named binary vectors)
+      X_vars_selected <- cov_selection[ "two_step_lasso_X", , repetition]
+      Y_vars_selected <- cov_selection[   "two_step_lasso", , repetition]
       
-      lasso_X_coefs        <- as.vector(lasso_X_model$beta)
-      names(lasso_X_coefs) <- rownames(lasso_X_model$beta)
+      # convert to vectors of variable names
+      X_vars_selected <- names(X_vars_selected[X_vars_selected == 1])
+      Y_vars_selected <- names(Y_vars_selected[Y_vars_selected == 1])
       
-      X_vars_selected <- names(lasso_X_coefs[lasso_X_coefs != 0.0])
-      X_vars_selected <- union(c('X'), X_vars_selected) # always select X
-      X_vars_selected <- X_vars_selected[X_vars_selected != "(Intercept)"]
+      # union
+      vars_selected <- union(X_vars_selected, Y_vars_selected)
       
-      
-      # Y model
-      if (binary_Y) {
-        cv_lasso_Y_model <- cv.glmnet(x = data.matrix(X_dataset), y = data.matrix(Y_column), family = 'binomial', alpha=1)
-        lambda_Y         <- cv_lasso_Y_model$lambda.min
-        lasso_Y_model    <- glmnet(x = data.matrix(X_dataset), y = data.matrix(Y_column), family = 'binomial', alpha=1, lambda=lambda_Y)
-      }
-      else {
-        cv_lasso_Y_model <- cv.glmnet(x = data.matrix(X_dataset), y = data.matrix(Y_column), alpha=1)
-        lambda_Y         <- cv_lasso_Y_model$lambda.min
-        lasso_Y_model    <- glmnet(x = data.matrix(X_dataset), y = data.matrix(Y_column), alpha=1, lambda=lambda_Y)
-      }
-      
-      lasso_Y_coefs        <- as.vector(lasso_Y_model$beta)
-      names(lasso_Y_coefs) <- rownames(lasso_Y_model$beta)
-      
-      Y_vars_selected <- names(lasso_Y_coefs[lasso_Y_coefs != 0.0])
-      Y_vars_selected <- union(c('X'), Y_vars_selected) # always select X
-      Y_vars_selected <- Y_vars_selected[Y_vars_selected != "(Intercept)"]
-      
-      
-      # union model
-      vars_selected   <- union(X_vars_selected, Y_vars_selected)
       model_formula   <- make_model_formula(vars_selected = vars_selected)
       X_model_formula <- make_X_model_formula(vars_selected = vars_selected)
-      
-      if (binary_Y) {
-        model <- glm(model_formula, data = dataset, family = "binomial")
-      }
-      else {
-        model <- lm(model_formula,  data = dataset)
-      }
-      if (binary_X) {
-        X_model <- glm(X_model_formula, data = X_dataset, family = "binomial")
-      }
-      else {
-        X_model <- lm(X_model_formula,  data = X_dataset)
-      }
     }
+    
+    # fit models
+    model   <- lm(model_formula,   data = dataset)
+    X_model <- lm(X_model_formula, data = X_dataset)
     
     # record model coefficients
     current_coefs <- fill_in_blanks(model$coefficients, var_names_except_Y_with_intercept)
