@@ -654,8 +654,8 @@ for (repetition in 1:n_rep) {
     
     else if (method == "linear_unadjusted") {
       vars_selected   <- c("X") # none except X
-      model_formula   <- make_model_formula(vars_selected = vars_selected)
-      X_model_formula <- make_X_model_formula(vars_selected = vars_selected)
+      model_formula   <- "Y ~ X"
+      X_model_formula <- "X ~ 0"
     }
     
     else if (method == "stepwise") {
