@@ -568,7 +568,6 @@ generate_dataset <- function() {
 # ----- Model fitting and metric measurement -----
 
 model_methods <- c("linear", "linear_unadjusted",
-                   "stepwise", "stepwise_X",
                    "two_step_lasso", "two_step_lasso_X", "two_step_lasso_union")
 
 results_methods <- c("pred_mse", "model_SE", "emp_SE",
@@ -635,6 +634,7 @@ for (repetition in 1:n_rep) {
   
   for (method in model_methods) {
     message(paste0("Fitting model for method ", method))
+    method_start_time <- as.numeric(Sys.time())*1000
     # fit model
     model   <- NULL
     X_model <- NULL # required to make R2X well-defined
@@ -654,13 +654,13 @@ for (repetition in 1:n_rep) {
     else if (method == "stepwise") {
       if (binary_Y) {
         stepwise_model <- step(object    = speedglm("Y ~ .", data = dataset, family = binomial(), model=TRUE, y=TRUE, fitted=TRUE), # all variable base
-                               direction = "both",                                            # stepwise, not fwd or bwd
+                               direction = "backward",                                            # stepwise, not fwd or bwd
                                scope     = list(upper = "Y ~ .", lower = "Y ~ X"),            # exposure X always included
                                trace     = 0)                                                 # suppress output
       }
       else {
         stepwise_model <- step(object    = lm("Y ~ .", data = dataset),            # all variable base
-                               direction = "both",                                 # stepwise, not fwd or bwd
+                               direction = "backward",                                 # stepwise, not fwd or bwd
                                scope     = list(upper = "Y ~ .", lower = "Y ~ X"), # exposure X always included
                                trace     = 0)
       }
@@ -676,13 +676,13 @@ for (repetition in 1:n_rep) {
     else if (method == "stepwise_X") {
       if (binary_X) {
         stepwise_X_model <- step(object    = speedglm("X ~ .", data = X_dataset, family = binomial(), model=TRUE, y=TRUE, fitted=TRUE), # all variable base
-                                 direction = "both",                                              # stepwise, not fwd or bwd
+                                 direction = "backward",                                              # stepwise, not fwd or bwd
                                  scope     = list(upper = "X ~ .", lower = "X ~ 0"),              # constant term
                                  trace     = 0)                                                   # suppress output
       }
       else {
         stepwise_X_model <- step(object    = lm("X ~ .", data = X_dataset),          # all variable base
-                                 direction = "both",                                 # stepwise, not fwd or bwd
+                                 direction = "backward",                                 # stepwise, not fwd or bwd
                                  scope     = list(upper = "X ~ .", lower = "X ~ 0"), # constant term
                                  trace     = 0)
       }
@@ -831,7 +831,11 @@ for (repetition in 1:n_rep) {
     
     results[ method, "open_paths", repetition]    <- num_total_conf
     results[ method, "blocked_paths", repetition] <- length(vars_selected[vars_selected != "X"])
-  
+    
+    method_end_time <- as.numeric(Sys.time())*1000
+    method_elapsed_time <- (method_end_time - method_start_time)/1000
+    message(paste0("Method ", method, " ran in ", signif(method_elapsed_time, digits=4), " seconds\n"))
+    
   }  # methods loop
   
 } # repetitions loop

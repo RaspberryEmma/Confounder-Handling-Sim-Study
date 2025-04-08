@@ -7,7 +7,7 @@
 # Emma Tarmey
 #
 # Started:          06/02/2025
-# Most Recent Edit: 01/04/2025
+# Most Recent Edit: 08/04/2025
 # ****************************************
 
 
@@ -458,6 +458,9 @@ for (repetition in 1:n_rep) {
   X_column  <- subset(dataset, select=c(X))
   
   for (method in model_methods) {
+    message(paste0("Fitting model for method ", method))
+    method_start_time <- as.numeric(Sys.time())*1000
+    
     # fit model
     model   <- NULL
     X_model <- NULL # required to make R2X well-defined
@@ -644,8 +647,13 @@ for (repetition in 1:n_rep) {
     
     results[ method, "open_paths", repetition]    <- num_total_conf
     results[ method, "blocked_paths", repetition] <- length(vars_selected[vars_selected != "X"])
-  }
-}
+    
+    method_end_time <- as.numeric(Sys.time())*1000
+    method_elapsed_time <- (method_end_time - method_start_time)/1000
+    message(paste0("Method ", method, " ran in ", signif(method_elapsed_time, digits=4), " seconds\n"))
+    
+  } # methods loop
+} # repetitions loop
 
 # Take mean across repetitions
 final_results <- as.data.frame(apply(results, c(1,2), mean))
