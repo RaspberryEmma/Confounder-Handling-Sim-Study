@@ -26,7 +26,7 @@ using<-function(...) {
     lapply(need, require, character.only=TRUE)
   }
 }
-using("dplyr", "glmnet", "tidyr", "parglm", "parallel")
+using("doParallel", "dplyr", "glmnet", "tidyr", "parglm", "parallel")
 
 # fix wd issue
 # forces wd to be the location of this file
@@ -88,6 +88,13 @@ set.seed(seed$seed)
 
 n_simulation <- "TEST"
 n_scenario   <- "TEST"
+
+
+
+# ----- Parallelization -----
+
+num_threads <- 8 # parallel::detectCores(logical = FALSE) - 1
+registerDoParallel(num_threads)
 
 
 
@@ -641,13 +648,13 @@ for (repetition in 1:n_rep) {
     
     if (method == "linear") {
       if (binary_Y) {
-        model <- parglm("Y ~ .", data = dataset, family = "binomial", control = parglm.control(nthreads = parallel::detectCores(logical = FALSE)))
+        model <- parglm("Y ~ .", data = dataset, family = "binomial", control = parglm.control(nthreads = num_threads))
       }
       else {
         model <- lm("Y ~ .",  data = dataset)
       }
       if (binary_X) {
-        X_model <- parglm("X ~ .", data = X_dataset, family = "binomial", control = parglm.control(nthreads = parallel::detectCores(logical = FALSE)))
+        X_model <- parglm("X ~ .", data = X_dataset, family = "binomial", control = parglm.control(nthreads = num_threads))
       }
       else {
         X_model <- lm("X ~ .",  data = X_dataset)
@@ -697,13 +704,13 @@ for (repetition in 1:n_rep) {
       X_model_formula <- make_X_model_formula(vars_selected = vars_selected)
       
       if (binary_Y) {
-        model <- parglm(model_formula, data = dataset, family = "binomial", control = parglm.control(nthreads = parallel::detectCores(logical = FALSE)))
+        model <- parglm(model_formula, data = dataset, family = "binomial", control = parglm.control(nthreads = num_threads))
       }
       else {
         model <- lm(model_formula,  data = dataset)
       }
       if (binary_X) {
-        X_model <- parglm(X_model_formula, data = X_dataset, family = "binomial", control = parglm.control(nthreads = parallel::detectCores(logical = FALSE)))
+        X_model <- parglm(X_model_formula, data = X_dataset, family = "binomial", control = parglm.control(nthreads = num_threads))
       }
       else {
         X_model <- lm(X_model_formula,  data = X_dataset)
@@ -732,13 +739,13 @@ for (repetition in 1:n_rep) {
       X_model_formula <- make_X_model_formula(vars_selected = vars_selected)
       
       if (binary_Y) {
-        model <- parglm(model_formula, data = dataset, family = "binomial", control = parglm.control(nthreads = parallel::detectCores(logical = FALSE)))
+        model <- parglm(model_formula, data = dataset, family = "binomial", control = parglm.control(nthreads = num_threads))
       }
       else {
         model <- lm(model_formula,  data = dataset)
       }
       if (binary_X) {
-        X_model <- parglm(X_model_formula, data = X_dataset, family = "binomial", control = parglm.control(nthreads = parallel::detectCores(logical = FALSE)))
+        X_model <- parglm(X_model_formula, data = X_dataset, family = "binomial", control = parglm.control(nthreads = num_threads))
       }
       else {
         X_model <- lm(X_model_formula,  data = X_dataset)
@@ -747,14 +754,14 @@ for (repetition in 1:n_rep) {
     
     else if (method == "two_step_lasso") {
       if (binary_Y) {
-        cv_lasso_model <- cv.glmnet(x = data.matrix(X_dataset), y = data.matrix(Y_column), family = 'binomial', alpha=1)
+        cv_lasso_model <- cv.glmnet(x = data.matrix(X_dataset), y = data.matrix(Y_column), family = 'binomial', alpha=1, parallel = TRUE)
         lambda         <- cv_lasso_model$lambda.min
-        lasso_model    <- glmnet(x = data.matrix(X_dataset), y = data.matrix(Y_column), family = 'binomial', alpha=1, lambda=lambda)
+        lasso_model    <- glmnet(x = data.matrix(X_dataset), y = data.matrix(Y_column), family = 'binomial', alpha=1, lambda=lambda, parallel = TRUE)
       }
       else {
-        cv_lasso_model <- cv.glmnet(x = data.matrix(X_dataset), y = data.matrix(Y_column), alpha=1)
+        cv_lasso_model <- cv.glmnet(x = data.matrix(X_dataset), y = data.matrix(Y_column), alpha=1, parallel = TRUE)
         lambda         <- cv_lasso_model$lambda.min
-        lasso_model    <- glmnet(x = data.matrix(X_dataset), y = data.matrix(Y_column), alpha=1, lambda=lambda)
+        lasso_model    <- glmnet(x = data.matrix(X_dataset), y = data.matrix(Y_column), alpha=1, lambda=lambda, parallel = TRUE)
       }
       
       lasso_coefs        <- as.vector(lasso_model$beta)
@@ -768,13 +775,13 @@ for (repetition in 1:n_rep) {
       X_model_formula <- make_X_model_formula(vars_selected = vars_selected)
       
       if (binary_Y) {
-        model <- parglm(model_formula, data = dataset, family = "binomial", control = parglm.control(nthreads = parallel::detectCores(logical = FALSE)))
+        model <- parglm(model_formula, data = dataset, family = "binomial", control = parglm.control(nthreads = num_threads))
       }
       else {
         model <- lm(model_formula,  data = dataset)
       }
       if (binary_X) {
-        X_model <- parglm(X_model_formula, data = X_dataset, family = "binomial", control = parglm.control(nthreads = parallel::detectCores(logical = FALSE)))
+        X_model <- parglm(X_model_formula, data = X_dataset, family = "binomial", control = parglm.control(nthreads = num_threads))
       }
       else {
         X_model <- lm(X_model_formula,  data = X_dataset)
@@ -783,14 +790,14 @@ for (repetition in 1:n_rep) {
     
     else if (method == "two_step_lasso_X") {
       if (binary_X) {
-        cv_lasso_X_model <- cv.glmnet(x = data.matrix(Z_dataset), y = data.matrix(X_column), family = 'binomial', alpha=1)
+        cv_lasso_X_model <- cv.glmnet(x = data.matrix(Z_dataset), y = data.matrix(X_column), family = 'binomial', alpha=1, parallel = TRUE)
         lambda           <- cv_lasso_X_model$lambda.min
-        lasso_model      <- glmnet(x = data.matrix(Z_dataset), y = data.matrix(X_column), family = 'binomial', alpha=1, lambda=lambda)
+        lasso_model      <- glmnet(x = data.matrix(Z_dataset), y = data.matrix(X_column), family = 'binomial', alpha=1, lambda=lambda, parallel = TRUE)
       }
       else {
-        cv_lasso_X_model <- cv.glmnet(x = data.matrix(Z_dataset), y = data.matrix(X_column), alpha=1)
+        cv_lasso_X_model <- cv.glmnet(x = data.matrix(Z_dataset), y = data.matrix(X_column), alpha=1, parallel = TRUE)
         lambda           <- cv_lasso_X_model$lambda.min
-        lasso_model      <- glmnet(x = data.matrix(Z_dataset), y = data.matrix(X_column), alpha=1, lambda=lambda)
+        lasso_model      <- glmnet(x = data.matrix(Z_dataset), y = data.matrix(X_column), alpha=1, lambda=lambda, parallel = TRUE)
       }
       
       lasso_coefs        <- as.vector(lasso_model$beta)
@@ -804,13 +811,13 @@ for (repetition in 1:n_rep) {
       X_model_formula <- make_X_model_formula(vars_selected = vars_selected)
       
       if (binary_Y) {
-        model <- parglm(model_formula, data = dataset, family = "binomial", control = parglm.control(nthreads = parallel::detectCores(logical = FALSE)))
+        model <- parglm(model_formula, data = dataset, family = "binomial", control = parglm.control(nthreads = num_threads))
       }
       else {
         model <- lm(model_formula,  data = dataset)
       }
       if (binary_X) {
-        X_model <- parglm(X_model_formula, data = X_dataset, family = "binomial", control = parglm.control(nthreads = parallel::detectCores(logical = FALSE)))
+        X_model <- parglm(X_model_formula, data = X_dataset, family = "binomial", control = parglm.control(nthreads = num_threads))
       }
       else {
         X_model <- lm(X_model_formula,  data = X_dataset)
@@ -820,14 +827,14 @@ for (repetition in 1:n_rep) {
     else if (method == "two_step_lasso_union") {
       # X model
       if (binary_X) {
-        cv_lasso_X_model <- cv.glmnet(x = data.matrix(Z_dataset), y = data.matrix(X_column), family = 'binomial', alpha=1)
+        cv_lasso_X_model <- cv.glmnet(x = data.matrix(Z_dataset), y = data.matrix(X_column), family = 'binomial', alpha=1, parallel = TRUE)
         lambda_X         <- cv_lasso_X_model$lambda.min
-        lasso_X_model    <- glmnet(x = data.matrix(Z_dataset), y = data.matrix(X_column), family = 'binomial', alpha=1, lambda=lambda_X)
+        lasso_X_model    <- glmnet(x = data.matrix(Z_dataset), y = data.matrix(X_column), family = 'binomial', alpha=1, lambda=lambda_X, parallel = TRUE)
       }
       else {
-        cv_lasso_X_model <- cv.glmnet(x = data.matrix(Z_dataset), y = data.matrix(X_column), alpha=1)
+        cv_lasso_X_model <- cv.glmnet(x = data.matrix(Z_dataset), y = data.matrix(X_column), alpha=1, parallel = TRUE)
         lambda_X         <- cv_lasso_X_model$lambda.min
-        lasso_X_model    <- glmnet(x = data.matrix(Z_dataset), y = data.matrix(X_column), alpha=1, lambda=lambda_X)
+        lasso_X_model    <- glmnet(x = data.matrix(Z_dataset), y = data.matrix(X_column), alpha=1, lambda=lambda_X, parallel = TRUE)
       }
       
       lasso_X_coefs        <- as.vector(lasso_X_model$beta)
@@ -840,14 +847,14 @@ for (repetition in 1:n_rep) {
       
       # Y model
       if (binary_Y) {
-        cv_lasso_Y_model <- cv.glmnet(x = data.matrix(X_dataset), y = data.matrix(Y_column), family = 'binomial', alpha=1)
+        cv_lasso_Y_model <- cv.glmnet(x = data.matrix(X_dataset), y = data.matrix(Y_column), family = 'binomial', alpha=1, parallel = TRUE)
         lambda_Y         <- cv_lasso_Y_model$lambda.min
-        lasso_Y_model    <- glmnet(x = data.matrix(X_dataset), y = data.matrix(Y_column), family = 'binomial', alpha=1, lambda=lambda_Y)
+        lasso_Y_model    <- glmnet(x = data.matrix(X_dataset), y = data.matrix(Y_column), family = 'binomial', alpha=1, lambda=lambda_Y, parallel = TRUE)
       }
       else {
-        cv_lasso_Y_model <- cv.glmnet(x = data.matrix(X_dataset), y = data.matrix(Y_column), alpha=1)
+        cv_lasso_Y_model <- cv.glmnet(x = data.matrix(X_dataset), y = data.matrix(Y_column), alpha=1, parallel = TRUE)
         lambda_Y         <- cv_lasso_Y_model$lambda.min
-        lasso_Y_model    <- glmnet(x = data.matrix(X_dataset), y = data.matrix(Y_column), alpha=1, lambda=lambda_Y)
+        lasso_Y_model    <- glmnet(x = data.matrix(X_dataset), y = data.matrix(Y_column), alpha=1, lambda=lambda_Y, parallel = TRUE)
       }
       
       lasso_Y_coefs        <- as.vector(lasso_Y_model$beta)
@@ -864,13 +871,13 @@ for (repetition in 1:n_rep) {
       X_model_formula <- make_X_model_formula(vars_selected = vars_selected)
       
       if (binary_Y) {
-        model <- parglm(model_formula, data = dataset, family = "binomial", control = parglm.control(nthreads = parallel::detectCores(logical = FALSE)))
+        model <- parglm(model_formula, data = dataset, family = "binomial", control = parglm.control(nthreads = num_threads))
       }
       else {
         model <- lm(model_formula,  data = dataset)
       }
       if (binary_X) {
-        X_model <- parglm(X_model_formula, data = X_dataset, family = "binomial", control = parglm.control(nthreads = parallel::detectCores(logical = FALSE)))
+        X_model <- parglm(X_model_formula, data = X_dataset, family = "binomial", control = parglm.control(nthreads = num_threads))
       }
       else {
         X_model <- lm(X_model_formula,  data = X_dataset)
@@ -1017,6 +1024,7 @@ write.csv(final_cov_selection, paste("../data/", id_string, "_cov_selection.csv"
 
 write.csv(as.data.frame(analytic_cov_matrix), paste("../data/", id_string, "_analytic_cov_matrix.csv", sep=''))
 write.csv(as.data.frame(observed_cov_matrix), paste("../data/", id_string, "_observed_cov_matrix.csv", sep=''))
+
 
 
 

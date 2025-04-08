@@ -27,7 +27,7 @@ using<-function(...) {
     lapply(need, require, character.only=TRUE)
   }
 }
-using("dplyr", "glmnet", "tidyr")
+using("dplyr", "glmnet", "speedglm", "tidyr")
 
 # fix wd issue
 # forces wd to be the location of this file

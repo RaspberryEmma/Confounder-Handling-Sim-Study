@@ -26,7 +26,7 @@ using<-function(...) {
     lapply(need, require, character.only=TRUE)
   }
 }
-using("dplyr", "glmnet", "tidyr", "parglm", "parallel")
+using("dplyr", "glmnet", "tidyr")
 
 # fix wd issue
 # forces wd to be the location of this file
@@ -641,13 +641,13 @@ for (repetition in 1:n_rep) {
     
     if (method == "linear") {
       if (binary_Y) {
-        model <- parglm("Y ~ .", data = dataset, family = "binomial", control = parglm.control(nthreads = parallel::detectCores(logical = FALSE)))
+        model <- glm("Y ~ .", data = dataset, family = "binomial")
       }
       else {
         model <- lm("Y ~ .",  data = dataset)
       }
       if (binary_X) {
-        X_model <- parglm("X ~ .", data = X_dataset, family = "binomial", control = parglm.control(nthreads = parallel::detectCores(logical = FALSE)))
+        X_model <- glm("X ~ .", data = X_dataset, family = "binomial")
       }
       else {
         X_model <- lm("X ~ .",  data = X_dataset)
@@ -697,13 +697,13 @@ for (repetition in 1:n_rep) {
       X_model_formula <- make_X_model_formula(vars_selected = vars_selected)
       
       if (binary_Y) {
-        model <- parglm(model_formula, data = dataset, family = "binomial", control = parglm.control(nthreads = parallel::detectCores(logical = FALSE)))
+        model <- glm(model_formula, data = dataset, family = "binomial")
       }
       else {
         model <- lm(model_formula,  data = dataset)
       }
       if (binary_X) {
-        X_model <- parglm(X_model_formula, data = X_dataset, family = "binomial", control = parglm.control(nthreads = parallel::detectCores(logical = FALSE)))
+        X_model <- glm(X_model_formula, data = X_dataset, family = "binomial")
       }
       else {
         X_model <- lm(X_model_formula,  data = X_dataset)
@@ -732,13 +732,13 @@ for (repetition in 1:n_rep) {
       X_model_formula <- make_X_model_formula(vars_selected = vars_selected)
       
       if (binary_Y) {
-        model <- parglm(model_formula, data = dataset, family = "binomial", control = parglm.control(nthreads = parallel::detectCores(logical = FALSE)))
+        model <- glm(model_formula, data = dataset, family = "binomial")
       }
       else {
         model <- lm(model_formula,  data = dataset)
       }
       if (binary_X) {
-        X_model <- parglm(X_model_formula, data = X_dataset, family = "binomial", control = parglm.control(nthreads = parallel::detectCores(logical = FALSE)))
+        X_model <- glm(X_model_formula, data = X_dataset, family = "binomial")
       }
       else {
         X_model <- lm(X_model_formula,  data = X_dataset)
@@ -768,13 +768,13 @@ for (repetition in 1:n_rep) {
       X_model_formula <- make_X_model_formula(vars_selected = vars_selected)
       
       if (binary_Y) {
-        model <- parglm(model_formula, data = dataset, family = "binomial", control = parglm.control(nthreads = parallel::detectCores(logical = FALSE)))
+        model <- glm(model_formula, data = dataset, family = "binomial")
       }
       else {
         model <- lm(model_formula,  data = dataset)
       }
       if (binary_X) {
-        X_model <- parglm(X_model_formula, data = X_dataset, family = "binomial", control = parglm.control(nthreads = parallel::detectCores(logical = FALSE)))
+        X_model <- glm(X_model_formula, data = X_dataset, family = "binomial")
       }
       else {
         X_model <- lm(X_model_formula,  data = X_dataset)
@@ -804,13 +804,13 @@ for (repetition in 1:n_rep) {
       X_model_formula <- make_X_model_formula(vars_selected = vars_selected)
       
       if (binary_Y) {
-        model <- parglm(model_formula, data = dataset, family = "binomial", control = parglm.control(nthreads = parallel::detectCores(logical = FALSE)))
+        model <- glm(model_formula, data = dataset, family = "binomial")
       }
       else {
         model <- lm(model_formula,  data = dataset)
       }
       if (binary_X) {
-        X_model <- parglm(X_model_formula, data = X_dataset, family = "binomial", control = parglm.control(nthreads = parallel::detectCores(logical = FALSE)))
+        X_model <- glm(X_model_formula, data = X_dataset, family = "binomial")
       }
       else {
         X_model <- lm(X_model_formula,  data = X_dataset)
@@ -864,13 +864,13 @@ for (repetition in 1:n_rep) {
       X_model_formula <- make_X_model_formula(vars_selected = vars_selected)
       
       if (binary_Y) {
-        model <- parglm(model_formula, data = dataset, family = "binomial", control = parglm.control(nthreads = parallel::detectCores(logical = FALSE)))
+        model <- glm(model_formula, data = dataset, family = "binomial")
       }
       else {
         model <- lm(model_formula,  data = dataset)
       }
       if (binary_X) {
-        X_model <- parglm(X_model_formula, data = X_dataset, family = "binomial", control = parglm.control(nthreads = parallel::detectCores(logical = FALSE)))
+        X_model <- glm(X_model_formula, data = X_dataset, family = "binomial")
       }
       else {
         X_model <- lm(X_model_formula,  data = X_dataset)
@@ -889,6 +889,7 @@ for (repetition in 1:n_rep) {
     }
     cov_selection[ method, , repetition] <- current_cov_selection
     
+    
     # record results metrics
     results[ method, "pred_mse", repetition] <- mean(model$residuals^2)
     results[ method, "model_SE", repetition] <- (coef(summary(model))[, "Std. Error"])['X']
@@ -904,30 +905,13 @@ for (repetition in 1:n_rep) {
     results[ method, "convergence_rate", repetition] <- as.integer(model$converged)
     
     within_CI <- 0.0
-    
-    # CI <- confint(object = glm("Y ~ .", family = "binomial", data = dataset), parm = 'X', level = 0.95)
-    # print(CI)
-    # 
-    # CI <- confint.default(object = glm("Y ~ .", family = "binomial", data = dataset), parm = 'X', level = 0.95)
-    # print(CI)
-    # 
-    # CI <- glmtoolbox::confint2(model = model, level = 0.95, test = "wald")
-    # print(CI['X', ])
-    # 
-    # # todo: run problematic case!!!
-    # # biglasso ?
-    # # reduce n_obs? reduce n_rep?
-    # # if we have an identical covaiate set ?
-    # # split jobs??
-    # # let Paul know!
-    # 
-    # stop("dev")
-    # if ((!is.na(CI[1])) && (!is.na(CI[2]))) {
-    #   if ((causal > CI[1]) && (causal < CI[2])) {
-    #     within_CI <- 1.0
-    #   }
-    # }
-    # results[ method, "causal_coverage", repetition]   <- within_CI
+    CI        <- confint(model, 'X', level = 0.95)
+    if ((!is.na(CI[1])) && (!is.na(CI[2]))) {
+      if ((causal > CI[1]) && (causal < CI[2])) {
+        within_CI <- 1.0
+      }
+    }
+    results[ method, "causal_coverage", repetition]   <- within_CI
     
     results[ method, "open_paths", repetition]    <- num_total_conf
     results[ method, "blocked_paths", repetition] <- length(vars_selected[vars_selected != "X"])

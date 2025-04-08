@@ -6,7 +6,7 @@
 # Emma Tarmey
 #
 # Started:          06/02/2025
-# Most Recent Edit: 01/04/2025
+# Most Recent Edit: 08/04/2025
 # ****************************************
 
 
@@ -26,7 +26,7 @@ using<-function(...) {
     lapply(need, require, character.only=TRUE)
   }
 }
-using("dplyr", "glmnet", "tidyr", "parglm", "parallel")
+using("dplyr", "glmnet", "speedglm", "tidyr")
 
 # fix wd issue
 # forces wd to be the location of this file
@@ -66,8 +66,8 @@ if (length(args) > 0) {
   
 } else {
   n_scenario      <- 1
-  num_total_conf  <- 32
-  num_meas_conf   <- 32
+  num_total_conf  <- 64
+  num_meas_conf   <- 64
   num_unmeas_conf <- 0
 }
 
@@ -567,7 +567,6 @@ generate_dataset <- function() {
 
 # ----- Model fitting and metric measurement -----
 
-
 model_methods <- c("linear", "linear_unadjusted",
                    "stepwise", "stepwise_X",
                    "two_step_lasso", "two_step_lasso_X", "two_step_lasso_union")
@@ -635,49 +634,26 @@ for (repetition in 1:n_rep) {
   X_column  <- subset(dataset, select=c(X))
   
   for (method in model_methods) {
+    message(paste0("Fitting model for method ", method))
     # fit model
     model   <- NULL
     X_model <- NULL # required to make R2X well-defined
     
     if (method == "linear") {
-      if (binary_Y) {
-        model <- parglm("Y ~ .", data = dataset, family = "binomial", control = parglm.control(nthreads = parallel::detectCores(logical = FALSE)))
-      }
-      else {
-        model <- lm("Y ~ .",  data = dataset)
-      }
-      if (binary_X) {
-        X_model <- parglm("X ~ .", data = X_dataset, family = "binomial", control = parglm.control(nthreads = parallel::detectCores(logical = FALSE)))
-      }
-      else {
-        X_model <- lm("X ~ .",  data = X_dataset)
-      }
-      
-      vars_selected <- names(model$coefficients)
-      vars_selected <- vars_selected[vars_selected != "(Intercept)"]
+      vars_selected   <- colnames(X_dataset) # all
+      model_formula   <- make_model_formula(vars_selected = vars_selected)
+      X_model_formula <- make_X_model_formula(vars_selected = vars_selected)
     }
     
     else if (method == "linear_unadjusted") {
-      if (binary_Y) {
-        model <- glm("Y ~ X", data = dataset, family = "binomial")
-      }
-      else {
-        model <- lm("Y ~ X", data = dataset)
-      }
-      if (binary_X) {
-        X_model <- glm("X ~ 0", data = X_dataset, family = "binomial")
-      }
-      else {
-        X_model <- lm("X ~ 0", data = X_dataset)
-      }
-      
-      vars_selected <- names(model$coefficients)
-      vars_selected <- vars_selected[vars_selected != "(Intercept)"]
+      vars_selected   <- c("X") # none except X
+      model_formula   <- make_model_formula(vars_selected = vars_selected)
+      X_model_formula <- make_X_model_formula(vars_selected = vars_selected)
     }
     
     else if (method == "stepwise") {
       if (binary_Y) {
-        stepwise_model <- step(object    = glm("Y ~ .", data = dataset, family = "binomial"), # all variable base
+        stepwise_model <- step(object    = speedglm("Y ~ .", data = dataset, family = binomial(), model=TRUE, y=TRUE, fitted=TRUE), # all variable base
                                direction = "both",                                            # stepwise, not fwd or bwd
                                scope     = list(upper = "Y ~ .", lower = "Y ~ X"),            # exposure X always included
                                trace     = 0)                                                 # suppress output
@@ -695,24 +671,11 @@ for (repetition in 1:n_rep) {
       
       model_formula   <- make_model_formula(vars_selected = vars_selected)
       X_model_formula <- make_X_model_formula(vars_selected = vars_selected)
-      
-      if (binary_Y) {
-        model <- parglm(model_formula, data = dataset, family = "binomial", control = parglm.control(nthreads = parallel::detectCores(logical = FALSE)))
-      }
-      else {
-        model <- lm(model_formula,  data = dataset)
-      }
-      if (binary_X) {
-        X_model <- parglm(X_model_formula, data = X_dataset, family = "binomial", control = parglm.control(nthreads = parallel::detectCores(logical = FALSE)))
-      }
-      else {
-        X_model <- lm(X_model_formula,  data = X_dataset)
-      }
     }
     
     else if (method == "stepwise_X") {
       if (binary_X) {
-        stepwise_X_model <- step(object    = glm("X ~ .", data = X_dataset, family = "binomial"), # all variable base
+        stepwise_X_model <- step(object    = speedglm("X ~ .", data = X_dataset, family = binomial(), model=TRUE, y=TRUE, fitted=TRUE), # all variable base
                                  direction = "both",                                              # stepwise, not fwd or bwd
                                  scope     = list(upper = "X ~ .", lower = "X ~ 0"),              # constant term
                                  trace     = 0)                                                   # suppress output
@@ -730,19 +693,6 @@ for (repetition in 1:n_rep) {
       
       model_formula   <- make_model_formula(vars_selected = vars_selected)
       X_model_formula <- make_X_model_formula(vars_selected = vars_selected)
-      
-      if (binary_Y) {
-        model <- parglm(model_formula, data = dataset, family = "binomial", control = parglm.control(nthreads = parallel::detectCores(logical = FALSE)))
-      }
-      else {
-        model <- lm(model_formula,  data = dataset)
-      }
-      if (binary_X) {
-        X_model <- parglm(X_model_formula, data = X_dataset, family = "binomial", control = parglm.control(nthreads = parallel::detectCores(logical = FALSE)))
-      }
-      else {
-        X_model <- lm(X_model_formula,  data = X_dataset)
-      }
     }
     
     else if (method == "two_step_lasso") {
@@ -766,19 +716,6 @@ for (repetition in 1:n_rep) {
       
       model_formula   <- make_model_formula(vars_selected = vars_selected)
       X_model_formula <- make_X_model_formula(vars_selected = vars_selected)
-      
-      if (binary_Y) {
-        model <- parglm(model_formula, data = dataset, family = "binomial", control = parglm.control(nthreads = parallel::detectCores(logical = FALSE)))
-      }
-      else {
-        model <- lm(model_formula,  data = dataset)
-      }
-      if (binary_X) {
-        X_model <- parglm(X_model_formula, data = X_dataset, family = "binomial", control = parglm.control(nthreads = parallel::detectCores(logical = FALSE)))
-      }
-      else {
-        X_model <- lm(X_model_formula,  data = X_dataset)
-      }
     }
     
     else if (method == "two_step_lasso_X") {
@@ -802,75 +739,47 @@ for (repetition in 1:n_rep) {
       
       model_formula   <- make_model_formula(vars_selected = vars_selected)
       X_model_formula <- make_X_model_formula(vars_selected = vars_selected)
+    }
+    
+    else if (method == "two_step_lasso_union") {
+      # extract covariate selections from prev models (named binary vectors)
+      X_vars_selected <- cov_selection[ "two_step_lasso_X", , repetition]
+      Y_vars_selected <- cov_selection[   "two_step_lasso", , repetition]
       
+      # convert to vectors of variable names
+      X_vars_selected <- names(X_vars_selected[X_vars_selected == 1])
+      Y_vars_selected <- names(Y_vars_selected[Y_vars_selected == 1])
+      
+      # union
+      vars_selected <- union(X_vars_selected, Y_vars_selected)
+      
+      model_formula   <- make_model_formula(vars_selected = vars_selected)
+      X_model_formula <- make_X_model_formula(vars_selected = vars_selected)
+    }
+    
+    if (method == "linear_unadjusted") {
       if (binary_Y) {
-        model <- parglm(model_formula, data = dataset, family = "binomial", control = parglm.control(nthreads = parallel::detectCores(logical = FALSE)))
+        model <- glm(model_formula, data = dataset, family = "binomial")
       }
       else {
         model <- lm(model_formula,  data = dataset)
       }
       if (binary_X) {
-        X_model <- parglm(X_model_formula, data = X_dataset, family = "binomial", control = parglm.control(nthreads = parallel::detectCores(logical = FALSE)))
+        X_model <- glm(X_model_formula, data = X_dataset, family = "binomial")
       }
       else {
         X_model <- lm(X_model_formula,  data = X_dataset)
       }
     }
-    
-    else if (method == "two_step_lasso_union") {
-      # X model
-      if (binary_X) {
-        cv_lasso_X_model <- cv.glmnet(x = data.matrix(Z_dataset), y = data.matrix(X_column), family = 'binomial', alpha=1)
-        lambda_X         <- cv_lasso_X_model$lambda.min
-        lasso_X_model    <- glmnet(x = data.matrix(Z_dataset), y = data.matrix(X_column), family = 'binomial', alpha=1, lambda=lambda_X)
-      }
-      else {
-        cv_lasso_X_model <- cv.glmnet(x = data.matrix(Z_dataset), y = data.matrix(X_column), alpha=1)
-        lambda_X         <- cv_lasso_X_model$lambda.min
-        lasso_X_model    <- glmnet(x = data.matrix(Z_dataset), y = data.matrix(X_column), alpha=1, lambda=lambda_X)
-      }
-      
-      lasso_X_coefs        <- as.vector(lasso_X_model$beta)
-      names(lasso_X_coefs) <- rownames(lasso_X_model$beta)
-      
-      X_vars_selected <- names(lasso_X_coefs[lasso_X_coefs != 0.0])
-      X_vars_selected <- union(c('X'), X_vars_selected) # always select X
-      X_vars_selected <- X_vars_selected[X_vars_selected != "(Intercept)"]
-      
-      
-      # Y model
+    else {
       if (binary_Y) {
-        cv_lasso_Y_model <- cv.glmnet(x = data.matrix(X_dataset), y = data.matrix(Y_column), family = 'binomial', alpha=1)
-        lambda_Y         <- cv_lasso_Y_model$lambda.min
-        lasso_Y_model    <- glmnet(x = data.matrix(X_dataset), y = data.matrix(Y_column), family = 'binomial', alpha=1, lambda=lambda_Y)
-      }
-      else {
-        cv_lasso_Y_model <- cv.glmnet(x = data.matrix(X_dataset), y = data.matrix(Y_column), alpha=1)
-        lambda_Y         <- cv_lasso_Y_model$lambda.min
-        lasso_Y_model    <- glmnet(x = data.matrix(X_dataset), y = data.matrix(Y_column), alpha=1, lambda=lambda_Y)
-      }
-      
-      lasso_Y_coefs        <- as.vector(lasso_Y_model$beta)
-      names(lasso_Y_coefs) <- rownames(lasso_Y_model$beta)
-      
-      Y_vars_selected <- names(lasso_Y_coefs[lasso_Y_coefs != 0.0])
-      Y_vars_selected <- union(c('X'), Y_vars_selected) # always select X
-      Y_vars_selected <- Y_vars_selected[Y_vars_selected != "(Intercept)"]
-      
-      
-      # union model
-      vars_selected   <- union(X_vars_selected, Y_vars_selected)
-      model_formula   <- make_model_formula(vars_selected = vars_selected)
-      X_model_formula <- make_X_model_formula(vars_selected = vars_selected)
-      
-      if (binary_Y) {
-        model <- parglm(model_formula, data = dataset, family = "binomial", control = parglm.control(nthreads = parallel::detectCores(logical = FALSE)))
+        model <- speedglm(model_formula, data = dataset, family = binomial())
       }
       else {
         model <- lm(model_formula,  data = dataset)
       }
       if (binary_X) {
-        X_model <- parglm(X_model_formula, data = X_dataset, family = "binomial", control = parglm.control(nthreads = parallel::detectCores(logical = FALSE)))
+        X_model <- speedglm(X_model_formula, data = X_dataset, family = binomial())
       }
       else {
         X_model <- lm(X_model_formula,  data = X_dataset)
@@ -889,6 +798,7 @@ for (repetition in 1:n_rep) {
     }
     cov_selection[ method, , repetition] <- current_cov_selection
     
+    
     # record results metrics
     results[ method, "pred_mse", repetition] <- mean(model$residuals^2)
     results[ method, "model_SE", repetition] <- (coef(summary(model))[, "Std. Error"])['X']
@@ -901,38 +811,31 @@ for (repetition in 1:n_rep) {
     results[ method, "causal_estimate", repetition]   <- current_coefs['X']
     results[ method, "causal_bias", repetition]       <- NaN # filled-in after
     
-    results[ method, "convergence_rate", repetition] <- as.integer(model$converged)
+    if (binary_Y && (method != "linear_unadjusted")) {
+      # speedglm object
+      results[ method, "convergence_rate", repetition] <- as.integer(model$convergence)
+    }
+    else {
+      # lm object
+      results[ method, "convergence_rate", repetition] <- as.integer(model$converged)
+    }
     
     within_CI <- 0.0
-    
-    # CI <- confint(object = glm("Y ~ .", family = "binomial", data = dataset), parm = 'X', level = 0.95)
-    # print(CI)
-    # 
-    # CI <- confint.default(object = glm("Y ~ .", family = "binomial", data = dataset), parm = 'X', level = 0.95)
-    # print(CI)
-    # 
-    # CI <- glmtoolbox::confint2(model = model, level = 0.95, test = "wald")
-    # print(CI['X', ])
-    # 
-    # # todo: run problematic case!!!
-    # # biglasso ?
-    # # reduce n_obs? reduce n_rep?
-    # # if we have an identical covaiate set ?
-    # # split jobs??
-    # # let Paul know!
-    # 
-    # stop("dev")
-    # if ((!is.na(CI[1])) && (!is.na(CI[2]))) {
-    #   if ((causal > CI[1]) && (causal < CI[2])) {
-    #     within_CI <- 1.0
-    #   }
-    # }
-    # results[ method, "causal_coverage", repetition]   <- within_CI
+    CI        <- confint(model, 'X', level = 0.95)
+    if ((!is.na(CI[1])) && (!is.na(CI[2]))) {
+      if ((causal > CI[1]) && (causal < CI[2])) {
+        within_CI <- 1.0
+      }
+    }
+    results[ method, "causal_coverage", repetition]   <- within_CI
     
     results[ method, "open_paths", repetition]    <- num_total_conf
     results[ method, "blocked_paths", repetition] <- length(vars_selected[vars_selected != "X"])
-  }
-}
+  
+  }  # methods loop
+  
+} # repetitions loop
+
 
 # Take mean across repetitions
 final_results <- as.data.frame(apply(results, c(1,2), mean))

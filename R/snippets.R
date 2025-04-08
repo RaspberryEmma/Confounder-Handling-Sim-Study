@@ -67,3 +67,25 @@
 
 
 
+
+# Calculate confidence intervals
+# Done using the Wald Interval (https://www.statisticshowto.com/wald-ci/)
+# wald_CI <- function(p_hat = NULL, n_obs = NULL, quantile  = NULL) {
+#   
+#   print(p_hat) 
+#   
+#   print( (p_hat * (1 - p_hat)) )
+#   print( (p_hat * (1 - p_hat)) / n_obs )
+#   print( quantile * ((p_hat * (1 - p_hat)) / n_obs) )
+#   
+#   interval_half_width <- quantile * sqrt((p_hat * (1 - p_hat)) / n_obs)
+#   
+#   LHS <- p_hat - interval_half_width
+#   RHS <- p_hat + interval_half_width
+#   
+#   return (c(LHS, RHS))
+# }
+
+
+
+

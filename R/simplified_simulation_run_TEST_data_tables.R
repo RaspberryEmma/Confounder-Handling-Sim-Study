@@ -26,7 +26,7 @@ using<-function(...) {
     lapply(need, require, character.only=TRUE)
   }
 }
-using("dplyr", "glmnet", "tidyr", "parglm", "parallel")
+using("data.table", "dplyr", "glmnet", "tidyr")
 
 # fix wd issue
 # forces wd to be the location of this file
@@ -41,8 +41,8 @@ if (Sys.getenv("RSTUDIO") == "1") {
 # Run
 n_simulation      <- 9 # see Table!
 
-n_obs             <- 10000 # 10000
-n_rep             <- 5 # 2000
+n_obs             <- 1000 # 10000
+n_rep             <- 2 # 2000
 Z_correlation     <- 0.2
 Z_subgroups       <- 4.0
 target_r_sq_X     <- 0.6  # binary X
@@ -66,8 +66,8 @@ if (length(args) > 0) {
   
 } else {
   n_scenario      <- 1
-  num_total_conf  <- 32
-  num_meas_conf   <- 32
+  num_total_conf  <- 16
+  num_meas_conf   <- 16
   num_unmeas_conf <- 0
 }
 
@@ -113,7 +113,7 @@ round_df <- function(df, digits) {
 
 # Map of "is.nan" for different object types
 # Credit to: https://stackoverflow.com/questions/18142117/how-to-replace-nan-value-with-zero-in-a-huge-data-frame
-is.nan.data.frame <- function(x) {
+is.nan.data.table <- function(x) {
   do.call(cbind, lapply(x, is.nan))
 }
 
@@ -417,7 +417,7 @@ generate_dataset <- function() {
   num_of_batches       <- num_total_conf / 4
   num_censored_batches <- num_unmeas_conf / 4
   
-  dataset <- data.frame(matrix(NaN, nrow = n_obs, ncol = length(var_names)))
+  dataset <- data.table(matrix(NaN, nrow = n_obs, ncol = length(var_names)))
   colnames(dataset) <- var_names
   
   # shared prior U for all Z_i
@@ -641,13 +641,13 @@ for (repetition in 1:n_rep) {
     
     if (method == "linear") {
       if (binary_Y) {
-        model <- parglm("Y ~ .", data = dataset, family = "binomial", control = parglm.control(nthreads = parallel::detectCores(logical = FALSE)))
+        model <- glm("Y ~ .", data = dataset, family = "binomial")
       }
       else {
         model <- lm("Y ~ .",  data = dataset)
       }
       if (binary_X) {
-        X_model <- parglm("X ~ .", data = X_dataset, family = "binomial", control = parglm.control(nthreads = parallel::detectCores(logical = FALSE)))
+        X_model <- glm("X ~ .", data = X_dataset, family = "binomial")
       }
       else {
         X_model <- lm("X ~ .",  data = X_dataset)
@@ -697,13 +697,13 @@ for (repetition in 1:n_rep) {
       X_model_formula <- make_X_model_formula(vars_selected = vars_selected)
       
       if (binary_Y) {
-        model <- parglm(model_formula, data = dataset, family = "binomial", control = parglm.control(nthreads = parallel::detectCores(logical = FALSE)))
+        model <- glm(model_formula, data = dataset, family = "binomial")
       }
       else {
         model <- lm(model_formula,  data = dataset)
       }
       if (binary_X) {
-        X_model <- parglm(X_model_formula, data = X_dataset, family = "binomial", control = parglm.control(nthreads = parallel::detectCores(logical = FALSE)))
+        X_model <- glm(X_model_formula, data = X_dataset, family = "binomial")
       }
       else {
         X_model <- lm(X_model_formula,  data = X_dataset)
@@ -732,13 +732,13 @@ for (repetition in 1:n_rep) {
       X_model_formula <- make_X_model_formula(vars_selected = vars_selected)
       
       if (binary_Y) {
-        model <- parglm(model_formula, data = dataset, family = "binomial", control = parglm.control(nthreads = parallel::detectCores(logical = FALSE)))
+        model <- glm(model_formula, data = dataset, family = "binomial")
       }
       else {
         model <- lm(model_formula,  data = dataset)
       }
       if (binary_X) {
-        X_model <- parglm(X_model_formula, data = X_dataset, family = "binomial", control = parglm.control(nthreads = parallel::detectCores(logical = FALSE)))
+        X_model <- glm(X_model_formula, data = X_dataset, family = "binomial")
       }
       else {
         X_model <- lm(X_model_formula,  data = X_dataset)
@@ -768,13 +768,13 @@ for (repetition in 1:n_rep) {
       X_model_formula <- make_X_model_formula(vars_selected = vars_selected)
       
       if (binary_Y) {
-        model <- parglm(model_formula, data = dataset, family = "binomial", control = parglm.control(nthreads = parallel::detectCores(logical = FALSE)))
+        model <- glm(model_formula, data = dataset, family = "binomial")
       }
       else {
         model <- lm(model_formula,  data = dataset)
       }
       if (binary_X) {
-        X_model <- parglm(X_model_formula, data = X_dataset, family = "binomial", control = parglm.control(nthreads = parallel::detectCores(logical = FALSE)))
+        X_model <- glm(X_model_formula, data = X_dataset, family = "binomial")
       }
       else {
         X_model <- lm(X_model_formula,  data = X_dataset)
@@ -804,13 +804,13 @@ for (repetition in 1:n_rep) {
       X_model_formula <- make_X_model_formula(vars_selected = vars_selected)
       
       if (binary_Y) {
-        model <- parglm(model_formula, data = dataset, family = "binomial", control = parglm.control(nthreads = parallel::detectCores(logical = FALSE)))
+        model <- glm(model_formula, data = dataset, family = "binomial")
       }
       else {
         model <- lm(model_formula,  data = dataset)
       }
       if (binary_X) {
-        X_model <- parglm(X_model_formula, data = X_dataset, family = "binomial", control = parglm.control(nthreads = parallel::detectCores(logical = FALSE)))
+        X_model <- glm(X_model_formula, data = X_dataset, family = "binomial")
       }
       else {
         X_model <- lm(X_model_formula,  data = X_dataset)
@@ -864,13 +864,13 @@ for (repetition in 1:n_rep) {
       X_model_formula <- make_X_model_formula(vars_selected = vars_selected)
       
       if (binary_Y) {
-        model <- parglm(model_formula, data = dataset, family = "binomial", control = parglm.control(nthreads = parallel::detectCores(logical = FALSE)))
+        model <- glm(model_formula, data = dataset, family = "binomial")
       }
       else {
         model <- lm(model_formula,  data = dataset)
       }
       if (binary_X) {
-        X_model <- parglm(X_model_formula, data = X_dataset, family = "binomial", control = parglm.control(nthreads = parallel::detectCores(logical = FALSE)))
+        X_model <- glm(X_model_formula, data = X_dataset, family = "binomial")
       }
       else {
         X_model <- lm(X_model_formula,  data = X_dataset)
@@ -889,6 +889,7 @@ for (repetition in 1:n_rep) {
     }
     cov_selection[ method, , repetition] <- current_cov_selection
     
+    
     # record results metrics
     results[ method, "pred_mse", repetition] <- mean(model$residuals^2)
     results[ method, "model_SE", repetition] <- (coef(summary(model))[, "Std. Error"])['X']
@@ -904,30 +905,13 @@ for (repetition in 1:n_rep) {
     results[ method, "convergence_rate", repetition] <- as.integer(model$converged)
     
     within_CI <- 0.0
-    
-    # CI <- confint(object = glm("Y ~ .", family = "binomial", data = dataset), parm = 'X', level = 0.95)
-    # print(CI)
-    # 
-    # CI <- confint.default(object = glm("Y ~ .", family = "binomial", data = dataset), parm = 'X', level = 0.95)
-    # print(CI)
-    # 
-    # CI <- glmtoolbox::confint2(model = model, level = 0.95, test = "wald")
-    # print(CI['X', ])
-    # 
-    # # todo: run problematic case!!!
-    # # biglasso ?
-    # # reduce n_obs? reduce n_rep?
-    # # if we have an identical covaiate set ?
-    # # split jobs??
-    # # let Paul know!
-    # 
-    # stop("dev")
-    # if ((!is.na(CI[1])) && (!is.na(CI[2]))) {
-    #   if ((causal > CI[1]) && (causal < CI[2])) {
-    #     within_CI <- 1.0
-    #   }
-    # }
-    # results[ method, "causal_coverage", repetition]   <- within_CI
+    CI        <- confint(model, 'X', level = 0.95)
+    if ((!is.na(CI[1])) && (!is.na(CI[2]))) {
+      if ((causal > CI[1]) && (causal < CI[2])) {
+        within_CI <- 1.0
+      }
+    }
+    results[ method, "causal_coverage", repetition]   <- within_CI
     
     results[ method, "open_paths", repetition]    <- num_total_conf
     results[ method, "blocked_paths", repetition] <- length(vars_selected[vars_selected != "X"])
@@ -935,7 +919,7 @@ for (repetition in 1:n_rep) {
 }
 
 # Take mean across repetitions
-final_results <- as.data.frame(apply(results, c(1,2), mean))
+final_results <- as.data.table(apply(results, c(1,2), mean))
 
 # fill-in other results
 for (method in model_methods) {
@@ -948,11 +932,11 @@ for (method in model_methods) {
 final_results <- round_df(final_results, digits=3)
 
 # Process coefficients (NB: we omit NaNs here for interpretability)
-final_model_coefs <- as.data.frame(apply(model_coefs, c(1,2), function(x) mean(na.omit(x))))
+final_model_coefs <- as.data.table(apply(model_coefs, c(1,2), function(x) mean(na.omit(x))))
 final_model_coefs <- round_df(final_model_coefs, digits=3)
 
 # Process cov selection
-final_cov_selection <- as.data.frame(apply(cov_selection, c(1,2), mean))
+final_cov_selection <- as.data.table(apply(cov_selection, c(1,2), mean))
 final_cov_selection <- round_df(final_cov_selection, digits=3)
 
 
@@ -989,7 +973,7 @@ analytic_cov_matrix <- determine_subgroup_cov_matrix(num_total_conf = num_total_
 message("\n\nNon-subgroup non-binary Analytic Covariance:")
 print(analytic_cov_matrix)
 
-observed_cov_matrix <- round_df(as.data.frame(cov(dataset)), digits=3)
+observed_cov_matrix <- round_df(as.data.table(cov(dataset)), digits=3)
 message("\n\nObserved Covariance:")
 print(observed_cov_matrix)
 
@@ -1015,8 +999,8 @@ write.csv(final_results,       paste("../data/", id_string, "_results.csv", sep=
 write.csv(final_model_coefs,   paste("../data/", id_string, "_model_coefs.csv", sep=''))
 write.csv(final_cov_selection, paste("../data/", id_string, "_cov_selection.csv", sep=''))
 
-write.csv(as.data.frame(analytic_cov_matrix), paste("../data/", id_string, "_analytic_cov_matrix.csv", sep=''))
-write.csv(as.data.frame(observed_cov_matrix), paste("../data/", id_string, "_observed_cov_matrix.csv", sep=''))
+write.csv(as.data.table(analytic_cov_matrix), paste("../data/", id_string, "_analytic_cov_matrix.csv", sep=''))
+write.csv(as.data.table(observed_cov_matrix), paste("../data/", id_string, "_observed_cov_matrix.csv", sep=''))
 
 
 
