@@ -10,7 +10,7 @@
 # Emma Tarmey
 #
 # Started:          11/02/2025
-# Most Recent Edit: 19/03/2025
+# Most Recent Edit: 11/04/2025
 # ****************************************
 
 echo ""
@@ -29,19 +29,24 @@ cd bash
 module load languages/python/3.12.3
 
 # submit simulation to BP HPC
-# scenarios 2-9 only
-for i in 2 3 4 5 6 7 8 9;
+for i in 1 2 3 4 5 6 7 8 9;
 do
-	echo "Submitting job: launch_BP_run_"$i".sh"
-	sbatch "launch_BP_run_"$i".sh"
+	echo "Submitting job: launch_BP_run_"$i"_step_0.sh"
+	sbatch "launch_BP_run_"$i"_step_0.sh"
+
+	echo "Submitting job: launch_BP_run_"$i"_step_1.sh"
+	sbatch "launch_BP_run_"$i"_step_1.sh"
 done
 
 # submit simulation to BP HPC
 # null simulations
 for i in 1 2 3 4 5 6 7 8 9;
 do
-	echo "Submitting job: launch_BP_run_"$i".sh"
-	sbatch "launch_BP_run_null_"$i".sh"
+	echo "Submitting job: launch_BP_run_null_"$i"_step_0.sh"
+	sbatch "launch_BP_run_null_"$i"_step_0.sh"
+
+	echo "Submitting job: launch_BP_run_null_"$i"_step_1.sh"
+	sbatch "launch_BP_run_null_"$i"_step_1.sh"
 done
 
 # check jobs submitted correctly
