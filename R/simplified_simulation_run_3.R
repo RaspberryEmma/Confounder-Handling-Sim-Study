@@ -6,7 +6,7 @@
 # Emma Tarmey
 #
 # Started:          06/02/2025
-# Most Recent Edit: 08/04/2025
+# Most Recent Edit: 09/04/2025
 # ****************************************
 
 
@@ -60,12 +60,14 @@ if (length(args) > 0) {
   num_total_conf  <- as.numeric(args[2])
   num_meas_conf   <- as.numeric(args[3])
   num_unmeas_conf <- as.numeric(args[4])
+  include_step    <- as.numeric(args[5])
   
 } else {
   n_scenario      <- 1
-  num_total_conf  <- 16
-  num_meas_conf   <- 16
+  num_total_conf  <- 32
+  num_meas_conf   <- 32
   num_unmeas_conf <- 0
+  include_step    <- 0
 }
 
 
@@ -446,9 +448,13 @@ generate_dataset <- function() {
 # ----- Model fitting and metric measurement -----
 
 
-model_methods <- c("linear", "linear_unadjusted",
-                   "stepwise", "stepwise_X",
-                   "two_step_lasso", "two_step_lasso_X", "two_step_lasso_union")
+# ----- Model fitting and metric measurement -----
+
+if (include_step) {
+  model_methods <- c("stepwise", "stepwise_X")
+} else {
+  model_methods <- c("linear", "linear_unadjusted", "two_step_lasso", "two_step_lasso_X", "two_step_lasso_union")
+}
 
 results_methods <- c("pred_mse", "model_SE", "emp_SE",
                      "r_squared_X", "r_squared_Y",
@@ -729,12 +735,12 @@ print(final_results[, c(10:11)])
 
 
 # Save to file
-id_string <- paste("sim_run_", n_simulation, "_scenario_", n_scenario, sep='')
+id_string <- paste("sim_run_", n_simulation, "_scenario_", n_scenario, "_step_", include_step, sep='')
+write.csv(dataset,             paste("../data/", id_string, "_dataset.csv", sep=''))
 write.csv(final_results,       paste("../data/", id_string, "_results.csv", sep=''))
 write.csv(final_model_coefs,   paste("../data/", id_string, "_model_coefs.csv", sep=''))
 write.csv(final_cov_selection, paste("../data/", id_string, "_cov_selection.csv", sep=''))
 
 write.csv(as.data.frame(analytic_cov_matrix), paste("../data/", id_string, "_analytic_cov_matrix.csv", sep=''))
 write.csv(as.data.frame(observed_cov_matrix), paste("../data/", id_string, "_observed_cov_matrix.csv", sep=''))
-
 

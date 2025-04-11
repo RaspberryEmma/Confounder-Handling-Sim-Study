@@ -39,20 +39,22 @@ if (Sys.getenv("RSTUDIO") == "1") {
 # ----- Parameters ------
 
 # Run
-n_simulation      <- 5 # see Table!
+n_simulation      <- 9 # see Table!
 
 n_obs             <- 10000
-n_rep             <- 2000
+n_rep             <- 3 # 2000
 Z_correlation     <- 0.2
 Z_subgroups       <- 4.0
-target_r_sq_X     <- 0.6 # binary X
+target_r_sq_X     <- 0.6  # binary X
 target_r_sq_Y     <- 0.4
-causal            <- 0.5
+causal            <- 0.15 # binary Y
 
 binary_X            <- TRUE
-binary_X_prevalence <- 0.30
-binary_Y            <- FALSE
-binary_Z            <- FALSE
+binary_X_prevalance <- 0.30
+binary_Y            <- TRUE
+binary_Y_prevalence <- 0.30 # common
+binary_Z            <- TRUE
+binary_Z_prevalence <- 0.30
 
 # Scenario
 args = commandArgs(trailingOnly=TRUE)
@@ -81,6 +83,13 @@ seed     <- seeds_df %>%
   filter(simulation_run      == n_simulation) %>%
   filter(simulation_scenario == n_scenario)
 set.seed(seed$seed)
+
+
+
+# ----- Mark as test -----
+
+n_simulation <- "TEST"
+n_scenario   <- "TEST"
 
 
 
@@ -560,6 +569,7 @@ generate_dataset <- function() {
 
 # ----- Model fitting and metric measurement -----
 
+
 if (include_step) {
   model_methods <- c("stepwise", "stepwise_X")
 } else {
@@ -923,4 +933,6 @@ write.csv(final_cov_selection, paste("../data/", id_string, "_cov_selection.csv"
 
 write.csv(as.data.frame(analytic_cov_matrix), paste("../data/", id_string, "_analytic_cov_matrix.csv", sep=''))
 write.csv(as.data.frame(observed_cov_matrix), paste("../data/", id_string, "_observed_cov_matrix.csv", sep=''))
+
+
 
