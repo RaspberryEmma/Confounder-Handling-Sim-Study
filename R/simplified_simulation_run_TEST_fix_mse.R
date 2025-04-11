@@ -2,12 +2,11 @@
 # Confounder Handling Simulation Study
 #
 # Simplified, less flexible refactor of all existing sim code
-# Null simulation (causal effect = 0.0)
 #
 # Emma Tarmey
 #
 # Started:          06/02/2025
-# Most Recent Edit: 11/04/2025
+# Most Recent Edit: 09/04/2025
 # ****************************************
 
 
@@ -43,12 +42,12 @@ if (Sys.getenv("RSTUDIO") == "1") {
 n_simulation      <- 9 # see Table!
 
 n_obs             <- 10000
-n_rep             <- 2000
+n_rep             <- 10 # 2000
 Z_correlation     <- 0.2
 Z_subgroups       <- 4.0
 target_r_sq_X     <- 0.6  # binary X
 target_r_sq_Y     <- 0.4
-causal            <- 0.0  # null simulation
+causal            <- 0.15 # binary Y
 
 binary_X            <- TRUE
 binary_X_prevalance <- 0.30
@@ -87,12 +86,10 @@ set.seed(seed$seed)
 
 
 
-# ----- Mark simulation as Null -----
+# ----- Mark as test -----
 
-# NB: doing this ensures that program produces seperate results files, (1 =/= null_1)
-# additionally, logs are clearer
-n_simulation <- paste0("null_", n_simulation)
-n_scenario   <- paste0("null_", n_scenario)
+n_simulation <- "TEST"
+n_scenario   <- "TEST"
 
 
 
@@ -823,6 +820,7 @@ for (repetition in 1:n_rep) {
     
     # record results metrics
     results[ method, "pred_mse", repetition] <- glm_mse(model = model)
+    
     if (binary_Y) {
       # logistic speedglm object
       results[ method, "model_SE", repetition] <- (coef(summary(model)))['X', 'Std. Error']
@@ -831,6 +829,7 @@ for (repetition in 1:n_rep) {
       # linear lm object
       results[ method, "model_SE", repetition] <- (coef(summary(model))[, "Std. Error"])['X']
     }
+    
     results[ method, "emp_SE", repetition]   <- NaN # filled-in after
     
     results[ method, "r_squared_X", repetition] <- ifelse( binary_X, NaN, r_squared_X(X_model = X_model, X_test_data = X_dataset) )
@@ -954,4 +953,6 @@ write.csv(final_cov_selection, paste("../data/", id_string, "_cov_selection.csv"
 
 write.csv(as.data.frame(analytic_cov_matrix), paste("../data/", id_string, "_analytic_cov_matrix.csv", sep=''))
 write.csv(as.data.frame(observed_cov_matrix), paste("../data/", id_string, "_observed_cov_matrix.csv", sep=''))
+
+
 

@@ -360,6 +360,17 @@ fill_in_blanks <- function(coefs = NULL, labels = NULL) {
 
 
 
+# Determine the mean squared error of the model on a new dataset
+# Generates new test set internally, in principle works for all basic model types
+# lm, glm, speedglm etc
+glm_mse <- function(model = NULL) {
+  test_data        <- generate_dataset()
+  predicted_values <- predict(model, type = "response", newdata = test_data)
+  return( mean((test_data$Y - predicted_values)^2) )
+}
+
+
+
 # ----- Data generation mechanism -----
 
 # coefficient values for DAG
@@ -639,8 +650,15 @@ for (repetition in 1:n_rep) {
     
     
     # record results metrics
-    results[ method, "pred_mse", repetition] <- mean(model$residuals^2)
-    results[ method, "model_SE", repetition] <- (coef(summary(model))[, "Std. Error"])['X']
+    results[ method, "pred_mse", repetition] <- glm_mse(model = model)
+    if (binary_Y) {
+      # logistic speedglm object
+      results[ method, "model_SE", repetition] <- (coef(summary(model)))['X', 'Std. Error']
+    }
+    else {
+      # linear lm object
+      results[ method, "model_SE", repetition] <- (coef(summary(model))[, "Std. Error"])['X']
+    }
     results[ method, "emp_SE", repetition]   <- NaN # filled-in after
     
     results[ method, "r_squared_X", repetition] <- r_squared_X(X_model = X_model, X_test_data = X_dataset)
