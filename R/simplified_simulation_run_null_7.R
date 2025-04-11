@@ -46,9 +46,9 @@ n_obs             <- 10000
 n_rep             <- 2000
 Z_correlation     <- 0.2
 Z_subgroups       <- 4.0
-target_r_sq_X     <- 0.6  # binary X
+target_r_sq_X     <- 0.6
 target_r_sq_Y     <- 0.4
-causal            <- 0.0  # null simulation
+causal            <- 0.0 # null simulation
 
 binary_X            <- TRUE
 binary_X_prevalance <- 0.30
