@@ -7,7 +7,7 @@
 # Emma Tarmey
 #
 # Started:          06/02/2025
-# Most Recent Edit: 09/04/2025
+# Most Recent Edit: 11/04/2025
 # ****************************************
 
 
@@ -401,7 +401,7 @@ if (include_step) {
 results_methods <- c("pred_mse", "model_SE", "emp_SE",
                      "r_squared_X", "r_squared_Y",
                      "causal_true_value", "causal_estimate", "causal_bias", "causal_coverage",
-                     "open_paths", "blocked_paths")
+                     "open_paths", "blocked_paths", "convergence_rate")
 
 var_names                         <- c("Y", "X", paste('Z', c(1:num_total_conf), sep=''))
 var_names_except_Y                <- var_names[ !var_names == 'Y']
@@ -583,6 +583,15 @@ for (repetition in 1:n_rep) {
     results[ method, "causal_true_value", repetition] <- causal
     results[ method, "causal_estimate", repetition]   <- current_coefs['X']
     results[ method, "causal_bias", repetition]       <- NaN # filled-in after
+    
+    if (binary_Y && (method != "linear_unadjusted")) {
+      # speedglm object
+      results[ method, "convergence_rate", repetition] <- as.integer(model$convergence)
+    }
+    else {
+      # lm object
+      results[ method, "convergence_rate", repetition] <- NaN
+    }
     
     within_CI <- 0.0
     CI        <- confint(model, 'X', level = 0.95)

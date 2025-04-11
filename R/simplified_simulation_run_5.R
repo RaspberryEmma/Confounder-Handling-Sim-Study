@@ -6,7 +6,7 @@
 # Emma Tarmey
 #
 # Started:          06/02/2025
-# Most Recent Edit: 09/04/2025
+# Most Recent Edit: 11/04/2025
 # ****************************************
 
 
@@ -808,6 +808,15 @@ for (repetition in 1:n_rep) {
     results[ method, "causal_true_value", repetition] <- causal
     results[ method, "causal_estimate", repetition]   <- current_coefs['X']
     results[ method, "causal_bias", repetition]       <- NaN # filled-in after
+    
+    if (binary_Y && (method != "linear_unadjusted")) {
+      # speedglm object
+      results[ method, "convergence_rate", repetition] <- as.integer(model$convergence)
+    }
+    else {
+      # lm object
+      results[ method, "convergence_rate", repetition] <- NaN
+    }
     
     if (binary_Y && (method != "linear_unadjusted")) {
       # speedglm object
