@@ -7,7 +7,7 @@
 # Emma Tarmey
 #
 # Started:          06/02/2025
-# Most Recent Edit: 11/04/2025
+# Most Recent Edit: 28/04/2025
 # ****************************************
 
 
@@ -42,7 +42,7 @@ if (Sys.getenv("RSTUDIO") == "1") {
 # Run
 n_simulation      <- 8 # see Table!
 
-n_obs             <- 10000
+n_obs             <- 20000 # LASSO issue fix!
 n_rep             <- 2000
 Z_correlation     <- 0.2
 Z_subgroups       <- 4.0

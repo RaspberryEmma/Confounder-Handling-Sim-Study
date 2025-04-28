@@ -6,7 +6,7 @@
 # Emma Tarmey
 #
 # Started:          06/02/2025
-# Most Recent Edit: 11/04/2025
+# Most Recent Edit: 28/04/2025
 # ****************************************
 
 
@@ -41,7 +41,7 @@ if (Sys.getenv("RSTUDIO") == "1") {
 # Run
 n_simulation      <- 8 # see Table!
 
-n_obs             <- 10000
+n_obs             <- 20000 # LASSO issue fix!
 n_rep             <- 2000
 Z_correlation     <- 0.2
 Z_subgroups       <- 4.0
@@ -66,9 +66,9 @@ if (length(args) > 0) {
   include_step    <- as.numeric(args[5])
   
 } else {
-  n_scenario      <- 1
-  num_total_conf  <- 32
-  num_meas_conf   <- 32
+  n_scenario      <- 5
+  num_total_conf  <- 64
+  num_meas_conf   <- 64
   num_unmeas_conf <- 0
   include_step    <- 0
 }

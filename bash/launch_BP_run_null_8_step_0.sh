@@ -9,11 +9,11 @@
 # Emma Tarmey
 #
 # Started:          11/02/2025
-# Most Recent Edit: 11/04/2025
+# Most Recent Edit: 28/04/2025
 # ****************************************
 #
 #SBATCH --partition=compute
-#SBATCH --job-name=scenario_null_8
+#SBATCH --job-name=scen_8_all
 #SBATCH --nodes=1
 #SBATCH --ntasks-per-node=1
 #SBATCH --cpus-per-task=16
