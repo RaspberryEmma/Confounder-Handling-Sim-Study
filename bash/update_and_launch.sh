@@ -31,33 +31,18 @@ module load languages/python/3.12.3
 
 
 # submit simulation to BP HPC
-for i in 8;
+for i in 3 4 5 6 7 8 9;
 do
-	echo "Submitting job: launch_BP_run_"$i"_step_0.sh"
-	sbatch "launch_BP_run_"$i"_step_0.sh"
+	for j in 7 8;
+	do
+		for k in 0 1 2;
+		do
+			echo   "Submitting job: launch_BP_run_"$i"_step_"$k"_cs_"$j".sh"
+			sbatch "launch_BP_run_"$i"_step_"$k"_cs_"$j".sh"
+		done
+	done
 done
 
-for i in 2 3 4 5 6 7 8 9;
-do
-	echo "Submitting job: launch_BP_run_"$i"_step_1.sh"
-	sbatch "launch_BP_run_"$i"_step_1.sh"
-done
-
-
-
-# submit simulation to BP HPC
-# null simulations
-for i in 8;
-do
-	echo "Submitting job: launch_BP_run_null_"$i"_step_0.sh"
-	sbatch "launch_BP_run_null_"$i"_step_0.sh"
-done
-
-for i in 2 3 4 5 6 7 8 9;
-do
-	echo "Submitting job: launch_BP_run_null_"$i"_step_1.sh"
-	sbatch "launch_BP_run_null_"$i"_step_1.sh"
-done
 
 # check jobs submitted correctly
 sleep 5.0
